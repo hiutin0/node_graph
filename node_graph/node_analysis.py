@@ -1,19 +1,18 @@
-from ip_operation import *
+from utils.ip_operation import *
 from utils.errors import *
 from graph import Graph
+from node import Node
 
 set_throw_on_error()
 
-node = '54.147.255.140'
-DEFAULT_PORT = ['9922']
-
-
-a = ip_to_hex_string(node)
-b = hex_string_to_ip(a)
+ip = '54.147.255.148'
+default_ports = ['9922']
 
 # TODO construct a graph by a node
 vsys_graph = Graph('vsys')
-vsys_graph.construct_graph(node)
+vsys_graph.traversal_graph_dfs(ip)
+vsys_network = vsys_graph.construct_graph_network()
+print(vsys_network)
 
 # TODO get full info of nodes
 
@@ -23,6 +22,3 @@ vsys_graph.construct_graph(node)
 
 # TODO save data to local folder
 
-
-print(a)
-print(b)

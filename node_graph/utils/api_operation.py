@@ -4,18 +4,19 @@ from requests.exceptions import RequestException
 from .errors import NetworkException
 
 
-def api_default_port():
+def set_api_default_port():
     return ['9922']
 
 
-def get_node_link(node, port):
-    return "http://" + node + ":" + port
 
 
-def get_peer_nodes(node, ports):
-    for port in ports:
-        print(get_node_link(node, port))
-        print(get_height(get_node_link(node, port)))
+def check_node_request(url):
+    return requests.get(url).status_code
+
+
+def get_peer_nodes(link):
+    url = link + '/peers/connected'
+    return request(url)['peers']
 
 
 def get_height(link):
