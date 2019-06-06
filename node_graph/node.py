@@ -4,7 +4,7 @@ import requests
 
 
 valid_status_code = 200
-time_wait_for_response = 0.3
+time_wait_for_response = 0.5
 
 
 def get_node_link(ip, port):
@@ -40,17 +40,14 @@ def get_node_valid_port(url='', ip='', ports=None):
         return valid_ports[-1]
 
 
-def get_ips_info(peers=None):
-    ips = []
-    if peers:
-        for peer in peers:
-            ips.append(peer['address'].split('/')[-1])
-    return ips
-
 class Node:
-    def __init__(self, vertex_id, ip, default_ports):
+    def __init__(self, vertex_id, ip, default_ports, name='', nonce=''):
         self.id = vertex_id
         self.ip_address = ip
+        self.node_name = name
+        self.node_nonce = nonce
+        self.peers = list()
+
         self.port = get_node_valid_port(ip=self.ip_address, ports=default_ports)
         if self.port:
             self.status = True

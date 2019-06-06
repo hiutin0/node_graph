@@ -63,7 +63,8 @@ inactive_nodes_sort = sorted(inactive_nodes.items(), key=lambda x: x[1]['number_
 rank_list = active_nodes_sort + inactive_nodes_sort
 
 with open('nodes_details.csv', 'w') as csvfile:
-    fieldnames = ['vertex_id', 'ip_address', 'status', 'link', 'number_peers', 'address', 'height', 'version', 'location']
+    fieldnames = ['vertex_id', 'ip_address', 'status', 'node_name', 'node_nonce',
+                  'link', 'number_peers', 'address', 'height', 'version', 'location']
     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
     writer.writeheader()
 
