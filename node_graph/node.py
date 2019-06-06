@@ -47,7 +47,6 @@ def get_ips_info(peers=None):
             ips.append(peer['address'].split('/')[-1])
     return ips
 
-
 class Node:
     def __init__(self, vertex_id, ip, default_ports):
         self.id = vertex_id

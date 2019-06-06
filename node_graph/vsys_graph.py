@@ -3,11 +3,13 @@ from utils.api_operation import *
 from node import *
 from lib.stack import Stack
 import timeit
+import numpy as np
 
 
 class Graph:
     def __init__(self, name):
         self.graph_name = name
+        self.application_name = 'V SYSTEMSM'
         self.vertex_snapshot = {}
         self.graph = {}
         self.time_traversal_graph = 0
@@ -34,6 +36,11 @@ class Graph:
                 if self.graph[_vertex_id].status:
                     url = self.graph[_vertex_id].link
                     peers = get_peer_nodes(url)
+                    if peers:
+                        if peers[0]['applicationName'] != self.application_name:
+                            self.graph[_vertex_id].status = False
+                            self.graph[_vertex_id].link = 'link with wrong application'
+                            continue
                     ips = get_ips_info(peers)
                     for ip_port in ips:
                         ip_port_list = ip_port.split(':')
@@ -82,31 +89,48 @@ class Graph:
                 network.update({vertex_id: unique_peers})
         return network
 
-    # def construct_graph(self, node):
-    #     graph = {}
-    #     vertex_number = 0
-    #
-    #     default_ports = set_api_default_port()
-    #
-    #     root = Node(node, default_ports)
-    #     key = generate_a_key(node, vertex_number)
-    #     graph.update({key: root})
-    #     root.status = 'gray'
-    #
-    #     port = check_node_request(ip=node, ports=default_ports)
-    #
-    #     if port:
-    #         url = get_node_link(node, port)
-    #         peers = get_peer_nodes(url)
-    #         root.status = 'black'
-    #         ips = get_ip_info(peers)
-    #         for ip_port in ips:
-    #             ip_port_list = ip_port.split(':')
-    #             ip = ip_port_list[0]
-    #             port = ip_port_list[1]
-    #             if ip != root.ip:
-    #                 vertex_number += 1
-    #                 key = generate_a_key(ip, vertex_number)
-    #                 graph.update({key})
-    #
-    #         print(ips)
+    def get_graph_asymmetric_matrix(self, network):
+        matrix_row = len(self.vertex_snapshot)
+        matrix = np.zeros([matrix_row, matrix_row], dtype=np.int8)
+        for node in network:
+            matrix[node, network[node]] = 1
+        return matrix
+
+    def get_graph_symmetric_matrix(self, network):
+        matrix_row = len(self.vertex_snapshot)
+        matrix = np.zeros([matrix_row, matrix_row], dtype=np.int8)
+        for node in network:
+            matrix[node, network[node]] = 1
+            for end_node in network[node]:
+                matrix[end_node, node] = 1
+        return matrix
+
+    def get_nodes_detail(self, adjacent_matrix):
+        info = ['ip_address', 'status', 'link', 'number_peers', 'address', 'height', 'version', 'location']
+        nodes_detail = {}
+        for node_id in self.graph:
+            node = self.graph[node_id]
+            key = node.ip_hex() + '-' + str(node.id)
+            node_info = dict()
+            node_info.update({info[0]: node.ip_address})
+            node_info.update({info[1]: node.status})
+            node_info.update({info[3]: np.sum(adjacent_matrix[node_id, :])})
+
+            if node.status:
+                link = node.link
+                node_info.update({info[2]: link})
+                node_info.update({info[4]: get_node_wallet_address(link)})
+                node_info.update({info[5]: get_node_height(link)})
+                node_info.update({info[6]: get_node_version(link)})
+            else:
+                node_info.update({info[2]: None})
+                node_info.update({info[4]: None})
+                node_info.update({info[5]: None})
+                node_info.update({info[6]: None})
+
+            node_info.update({info[7]: get_location_ip(node.ip_address)})
+            nodes_detail.update({key: node_info})
+            print("node %s:  %s" % (key, nodes_detail[key]))
+
+        return nodes_detail
+
