@@ -114,16 +114,14 @@ class Graph:
             node_info = dict()
             node_info.update({info[0]: node.ip_address})
             node_info.update({info[1]: node.status})
+            node_info.update({info[2]: node.link})
             node_info.update({info[3]: np.sum(adjacent_matrix[node_id, :])})
 
             if node.status:
-                link = node.link
-                node_info.update({info[2]: link})
-                node_info.update({info[4]: get_node_wallet_address(link)})
-                node_info.update({info[5]: get_node_height(link)})
-                node_info.update({info[6]: get_node_version(link)})
+                node_info.update({info[4]: get_node_wallet_address(node.link)})
+                node_info.update({info[5]: get_node_height(node.link)})
+                node_info.update({info[6]: get_node_version(node.link)})
             else:
-                node_info.update({info[2]: None})
                 node_info.update({info[4]: None})
                 node_info.update({info[5]: None})
                 node_info.update({info[6]: None})
