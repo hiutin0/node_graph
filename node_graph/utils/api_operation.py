@@ -7,6 +7,7 @@ from bs4 import BeautifulSoup
 valid_status_code = 200
 time_wait_for_response = 0.5
 
+
 def set_api_default_port():
     return ['9922']
 
@@ -52,6 +53,21 @@ def get_location_ip(ip):
         return location
     else:
         return 'None'
+
+
+def parse_ip_port_name_nonce(item):
+    [ip, port] = parse_ip_port(item)
+    peer_name = item['peerName']
+    peer_nonce = item['peerNonce']
+
+    return [ip, port, peer_name, peer_nonce]
+
+
+def parse_ip_port(item):
+    ip_port = item['address'].split('/')[-1]
+    [ip, port] = ip_port.split(':')
+    return [ip, port]
+
 
 def get_node_wallet_address(link):
     url = link + '/addresses'

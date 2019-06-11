@@ -17,26 +17,31 @@ default_ports = ['9922']
 
 # TODO construct a graph by a node
 
-vsys_graph = Graph('vsys')
-vsys_graph.traversal_graph_dfs(ip)
-vsys_network = vsys_graph.construct_graph_network()
+graph_name = 'vsys'
+
+vsys = Graph(graph_name)
+vsys.traversal_graph_dfs(ip)
+vsys_network = vsys.construct_graph_network()
 
 print("all nodes: ", vsys_network)
 
-vsys_asymmetric_matrix = vsys_graph.get_graph_asymmetric_matrix(vsys_network)
+vsys_asymmetric_matrix = vsys.get_graph_asymmetric_matrix(vsys_network)
 print("asymmetric matrix: ", vsys_asymmetric_matrix)
 
-vsys_symmetric_matrix = vsys_graph.get_graph_symmetric_matrix(vsys_network)
+vsys_symmetric_matrix = vsys.get_graph_symmetric_matrix(vsys_network)
 print("symmetric matrix: ", vsys_symmetric_matrix)
 
-vsys_nodes = list(vsys_graph.vertex_snapshot.values())
+status = vsys.check_graph_outdated()
+print("status", status)
+
+vsys_nodes = list(vsys.vertex_snapshot.values())
 
 vsys_node_network = nx.DiGraph()
 vsys_node_network.add_nodes_from(vsys_nodes)
-color_list = ['blue'] * len(vsys_graph.graph)
+color_list = ['blue'] * len(vsys.graph)
 
-for node_id in vsys_graph.graph:
-    node = vsys_graph.graph[node_id]
+for node_id in vsys.graph:
+    node = vsys.graph[node_id]
     if not node.status:
         color_list[node_id] = 'red'
     if node_id in vsys_network:
@@ -47,7 +52,7 @@ nx.draw(vsys_node_network, node_color=color_list, with_labels=True)
 plt.draw()
 
 print("all nodes info")
-all_nodes_info = vsys_graph.get_nodes_detail(vsys_symmetric_matrix)
+all_nodes_info = vsys.get_nodes_detail(vsys_symmetric_matrix)
 
 active_nodes = {}
 inactive_nodes = {}

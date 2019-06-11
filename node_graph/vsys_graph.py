@@ -14,21 +14,37 @@ class Graph:
         self.graph = {}
         self.time_traversal_graph = 0
 
-    def traversal_graph_dfs(self, node):
+    def add_node_in_snapshot_graph(self, node_info, ip_address, ports):
+        vertex_id = node_info[0]
+        vertex_name = node_info[1]
+        vertex_nonce = node_info[2]
+        new_node = Node(vertex_id, ip_address, ports, vertex_name, vertex_nonce)
+        self.vertex_snapshot.update({ip_to_hex_string(ip_address): vertex_id})
+        self.graph.update({vertex_id: new_node})
+
+    def update_root_name_nonce(self, vertex_id, peer_name, peer_nonce):
+        if vertex_id == 0:
+            if not self.graph[vertex_id].node_name:
+                self.graph[vertex_id].node_name = peer_name
+            if not self.graph[vertex_id].node_nonce:
+                self.graph[vertex_id].node_nonce = peer_nonce
+
+    def traversal_graph_dfs(self, ip_address):
         vertex_id = 0
+        root_name = ''
+        root_nonce = ''
         default_ports = set_api_default_port()
 
-        root = Node(vertex_id, node, default_ports)
-        self.vertex_snapshot.update({ip_to_hex_string(node): vertex_id})
-        self.graph.update({vertex_id: root})
+        root = [vertex_id, root_name, root_nonce]
+        self.add_node_in_snapshot_graph(root, ip_address, default_ports)
 
-        node_checker = Stack()
-        node_checker.push(ip_to_hex_string(node))
+        node_stack = Stack()
+        node_stack.push(ip_to_hex_string(ip_address))
 
         start_time = timeit.default_timer()
 
-        while not node_checker.is_empty():
-            _vertex_hex = node_checker.pop()
+        while not node_stack.is_empty():
+            _vertex_hex = node_stack.pop()
             _vertex_id = self.vertex_snapshot[_vertex_hex]
 
             if not self.graph[_vertex_id].visited:
@@ -42,35 +58,21 @@ class Graph:
                             continue
                     peers_id = []
                     for item in peers:
-                        ip_port = item['address'].split('/')[-1]
-                        peer_name = item['peerName']
-                        peer_nonce = item['peerNonce']
-
-                        ip_port_list = ip_port.split(':')
-                        ip = ip_port_list[0]
-                        port = ip_port_list[1]
+                        [ip, port, peer_name, peer_nonce] = parse_ip_port_name_nonce(item)
                         _peer_hex = ip_to_hex_string(ip)
                         if _peer_hex not in self.vertex_snapshot:
                             vertex_id += 1
-                            default_ports.append(port)
-                            new_node = Node(vertex_id, ip, default_ports, peer_name, peer_nonce)
-                            self.vertex_snapshot.update({_peer_hex: vertex_id})
-                            self.graph.update({vertex_id: new_node})
-                            default_ports.pop()
+                            vertex_info = [vertex_id, peer_name, peer_nonce]
+                            self.add_node_in_snapshot_graph(vertex_info, ip, default_ports + [port])
 
                         _peer_id = self.vertex_snapshot[_peer_hex]
-
                         if _peer_hex != _vertex_hex:
                             peers_id.append(_peer_id)
                         else:
-                            if _peer_hex == root.ip_hex():
-                                if not self.graph[_peer_id].node_name:
-                                    self.graph[_peer_id].node_name = peer_name
-                                if not self.graph[_peer_id].node_nonce:
-                                    self.graph[_peer_id].node_nonce = peer_nonce
+                            self.update_root_name_nonce(_peer_id, peer_name, peer_nonce)
 
                         if not self.graph[_peer_id].visited:
-                            node_checker.push(_peer_hex)
+                            node_stack.push(_peer_hex)
 
                     self.graph[_vertex_id].peers = list(dict.fromkeys(peers_id))
             self.graph[_vertex_id].visited = True
@@ -78,7 +80,6 @@ class Graph:
         self.time_traversal_graph = stop_time - start_time
         print("time of traversing the graph: ", self.time_traversal_graph)
         print("total number of vertex in the graph: ", len(self.vertex_snapshot))
-        print(self.vertex_snapshot)
 
     def construct_graph_network(self):
         network = {}
@@ -89,33 +90,39 @@ class Graph:
                 network.update({vertex_id: np.copy(self.graph[vertex_id].peers)})
         return network
 
-    def update_graph_network(self):
+    def check_graph_outdated(self):
         for _vertex_hex in self.vertex_snapshot:
             _vertex_id = self.vertex_snapshot[_vertex_hex]
-            if self.graph[_vertex_id].status:
-                url = self.graph[_vertex_id].link
-                peers = get_peer_nodes(url)
-                for item in peers:
-                    ip_port = item['address'].split('/')[-1]
-                    ip_port_list = ip_port.split(':')
-                    ip = ip_port_list[0]
-                    _peer_hex = ip_to_hex_string(ip)
-                    if _peer_hex not in self.vertex_snapshot:
-                        return True
-                    else:
-                        continue
+
+            if self.check_node_outdated(_vertex_id):
+                return True
+            else:
+                continue
+        return False
+
+    def check_node_outdated(self, vertex_id):
+        if self.graph[vertex_id].status:
+            url = self.graph[vertex_id].link
+            peers = get_peer_nodes(url)
+            for item in peers:
+                [ip, _] = parse_ip_port(item)
+                _peer_hex = ip_to_hex_string(ip)
+                if _peer_hex not in self.vertex_snapshot:
+                    return True
+                else:
+                    continue
         return False
 
     def get_graph_asymmetric_matrix(self, network):
-        matrix_row = len(self.vertex_snapshot)
-        matrix = np.zeros([matrix_row, matrix_row], dtype=np.int8)
+        matrix_row_dim = len(self.vertex_snapshot)
+        matrix = np.zeros([matrix_row_dim, matrix_row_dim], dtype=np.int8)
         for node in network:
             matrix[node, network[node]] = 1
         return matrix
 
     def get_graph_symmetric_matrix(self, network):
-        matrix_row = len(self.vertex_snapshot)
-        matrix = np.zeros([matrix_row, matrix_row], dtype=np.int8)
+        matrix_row_dim = len(self.vertex_snapshot)
+        matrix = np.zeros([matrix_row_dim, matrix_row_dim], dtype=np.int8)
         for node in network:
             matrix[node, network[node]] = 1
             for end_node in network[node]:
