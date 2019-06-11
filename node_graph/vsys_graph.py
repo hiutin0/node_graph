@@ -1,7 +1,7 @@
-
+from lib.graph_operations import *
+from lib.stack import Stack
 from utils.api_operation import *
 from node import *
-from lib.stack import Stack
 import timeit
 import numpy as np
 
@@ -49,6 +49,7 @@ class Graph:
 
             if not self.graph[_vertex_id].visited:
                 if self.graph[_vertex_id].status:
+                    node_start_time = timeit.default_timer()
                     url = self.graph[_vertex_id].link
                     peers = get_peer_nodes(url)
                     if peers:
@@ -75,6 +76,8 @@ class Graph:
                             node_stack.push(_peer_hex)
 
                     self.graph[_vertex_id].peers = list(dict.fromkeys(peers_id))
+                    node_stop_time = timeit.default_timer()
+                    self.graph[_vertex_id].time_init = node_stop_time - node_start_time
             self.graph[_vertex_id].visited = True
         stop_time = timeit.default_timer()
         self.time_traversal_graph = stop_time - start_time
@@ -131,31 +134,59 @@ class Graph:
 
     def get_nodes_detail(self, adjacent_matrix):
         info = ['ip_address', 'status', 'node_name', 'node_nonce', 'link', 'number_peers',
-                'address', 'height', 'version', 'location']
+                'address', 'height', 'version', 'location', 'time_init', 'time_get_details']
         nodes_detail = {}
         for node_id in self.graph:
+
             node = self.graph[node_id]
             key = node.ip_hex() + '-' + str(node.id)
+
+            node_start_time = timeit.default_timer()
+            ip_address = node.ip_address
+            node_name = node.node_name
+            node_nonce = node.node_nonce
+            link = node.link
+
             node_info = dict()
-            node_info.update({info[0]: node.ip_address})
+            node_info.update({info[0]: ip_address})
             node_info.update({info[1]: node.status})
-            node_info.update({info[2]: node.node_name})
-            node_info.update({info[3]: node.node_nonce})
-            node_info.update({info[4]: node.link})
+            node_info.update({info[2]: node_name})
+            node_info.update({info[3]: node_nonce})
+            node_info.update({info[4]: link})
             node_info.update({info[5]: np.sum(adjacent_matrix[node_id, :])})
 
             if node.status:
-                node_info.update({info[6]: get_node_wallet_address(node.link)})
-                node_info.update({info[7]: get_node_height(node.link)})
-                node_info.update({info[8]: get_node_version(node.link)})
+                node_info.update({info[6]: get_node_wallet_address(link)})
+                node_info.update({info[7]: get_node_height(link)})
+                node_info.update({info[8]: get_node_version(link)})
             else:
                 node_info.update({info[6]: None})
                 node_info.update({info[7]: None})
                 node_info.update({info[8]: None})
 
-            node_info.update({info[9]: get_location_ip(node.ip_address)})
+            node_info.update({info[9]: get_location_ip(ip_address)})
+
+            node_stop_time = timeit.default_timer()
+            node_info.update({info[10]: node.time_init})
+
+            node.time_get_details = node_stop_time - node_start_time
+            node_info.update({info[11]: node.time_get_details})
+
             nodes_detail.update({key: node_info})
             print("node %s:  %s" % (key, nodes_detail[key]))
 
-        return nodes_detail
+        return [info, nodes_detail]
+
+
+    def output_graph_by_number_peers(self, all_nodes_info):
+
+        headers = ['vertex_id'] + all_nodes_info[0]
+        nodes_info = all_nodes_info[1]
+
+        [active_nodes, inactive_nodes] = get_nodes_with_status(nodes_info)
+        active_nodes_sort = sort_nodes_by_number_peers(active_nodes)
+        inactive_nodes_sort = sort_nodes_by_number_peers(inactive_nodes)
+
+        output_items_to_csv_file(headers, active_nodes_sort + inactive_nodes_sort)
+
 

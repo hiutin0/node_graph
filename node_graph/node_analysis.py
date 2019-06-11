@@ -1,7 +1,7 @@
 from utils.ip_operation import *
 from utils.errors import *
 from vsys_graph import Graph
-import csv
+
 import numpy as np
 from node import Node
 
@@ -54,39 +54,10 @@ plt.draw()
 print("all nodes info")
 all_nodes_info = vsys.get_nodes_detail(vsys_symmetric_matrix)
 
-active_nodes = {}
-inactive_nodes = {}
-rank_list = []
-for key in all_nodes_info:
-    if all_nodes_info[key]['status']:
-        active_nodes.update({key: all_nodes_info[key]})
-    else:
-        inactive_nodes.update({key: all_nodes_info[key]})
-
-active_nodes_sort = sorted(active_nodes.items(), key=lambda x: x[1]['number_peers'], reverse=True)
-inactive_nodes_sort = sorted(inactive_nodes.items(), key=lambda x: x[1]['number_peers'], reverse=True)
-rank_list = active_nodes_sort + inactive_nodes_sort
-
-with open('nodes_details.csv', 'w') as csvfile:
-    fieldnames = ['vertex_id', 'ip_address', 'status', 'node_name', 'node_nonce',
-                  'link', 'number_peers', 'address', 'height', 'version', 'location']
-    writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-    writer.writeheader()
-
-    for item in rank_list:
-        vertex_id = item[0].split('-')[1]
-        row_info = dict()
-        row_info.update({fieldnames[0]: vertex_id})
-        row_info.update(item[1])
-        writer.writerow(row_info)
-
-csvfile.close()
+vsys.output_graph_by_number_peers(all_nodes_info)
 
 plt.show()
 
-
-
-# TODO update adjacent link
 
 # TODO save data to local folder
 

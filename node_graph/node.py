@@ -57,6 +57,9 @@ class Node:
             self.link = None
         self.visited = False
 
+        self.time_init = 0
+        self.time_get_details = 0
+
     def ip_hex(self):
         return ip_to_hex_string(self.ip_address)
 
