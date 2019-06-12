@@ -34,21 +34,18 @@ def get_location_ip(ip):
         html = requests.get(url).content
         soup = BeautifulSoup(html, 'html.parser')
 
-        content_table = soup.find('table', {"class": "table table-sm table-hover mt-4"})
-        if content_table:
-            tables = content_table.find_all('tr')
-            columns_country = [th.text.replace('\n', '') for th in tables[1].find_all('td')]
-            columns_region = [th.text.replace('\n', '') for th in tables[3].find_all('td')]
-
-            if columns_country[0]:
-                country = columns_country[0].strip()
+        content = soup.find('div', {"id": "geoResult"})
+        if content:
+            content_details = content.find_all('dd')
+            if len(content_details) >= 4:
+                country = content_details[3].text
             else:
-                country = 'None'
+                country = None
 
-            if columns_region[0]:
-                region = columns_region[0].strip()
+            if len(content_details) >= 2:
+                region = content_details[1].text
             else:
-                region = 'None'
+                region = None
 
             location = region + ' | ' + country
         else:

@@ -31,6 +31,10 @@ print("asymmetric matrix: ", vsys_asymmetric_matrix)
 vsys_symmetric_matrix = vsys.get_graph_symmetric_matrix(vsys_network)
 print("symmetric matrix: ", vsys_symmetric_matrix)
 
+plt.figure()
+plt.matshow(vsys_symmetric_matrix)
+plt.savefig('1.png', bbox_inches='tight')
+
 status = vsys.check_graph_outdated()
 print("status", status)
 
@@ -48,15 +52,21 @@ for node_id in vsys.graph:
         for peer in vsys_network[node_id]:
             vsys_node_network.add_edge(node_id, peer)
 
+plt.figure()
 nx.draw(vsys_node_network, node_color=color_list, with_labels=True)
 plt.draw()
+plt.savefig('2.png', bbox_inches='tight')
 
 print("all nodes info")
 all_nodes_info = vsys.get_nodes_detail(vsys_symmetric_matrix)
 
 vsys.output_graph_by_number_peers(all_nodes_info)
 
+
 plt.show()
+
+
+
 
 
 # TODO save data to local folder
