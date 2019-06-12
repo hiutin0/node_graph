@@ -35,24 +35,27 @@ def get_location_ip(ip):
         soup = BeautifulSoup(html, 'html.parser')
 
         content_table = soup.find('table', {"class": "table table-sm table-hover mt-4"})
-        tables = content_table.find_all('tr')
-        columns_country = [th.text.replace('\n', '') for th in tables[1].find_all('td')]
-        columns_region = [th.text.replace('\n', '') for th in tables[3].find_all('td')]
+        if content_table:
+            tables = content_table.find_all('tr')
+            columns_country = [th.text.replace('\n', '') for th in tables[1].find_all('td')]
+            columns_region = [th.text.replace('\n', '') for th in tables[3].find_all('td')]
 
-        if columns_country[0]:
-            country = columns_country[0].strip()
+            if columns_country[0]:
+                country = columns_country[0].strip()
+            else:
+                country = 'None'
+
+            if columns_region[0]:
+                region = columns_region[0].strip()
+            else:
+                region = 'None'
+
+            location = region + ' | ' + country
         else:
-            country = 'None'
-
-        if columns_region[0]:
-            region = columns_region[0].strip()
-        else:
-            region = 'None'
-
-        location = region + ' | ' + country
+            location = None
         return location
     else:
-        return 'None'
+        return None
 
 
 def parse_ip_port_name_nonce(item):

@@ -35,8 +35,8 @@ class Graph:
         root_nonce = ''
         default_ports = set_api_default_port()
 
-        root = [vertex_id, root_name, root_nonce]
-        self.add_node_in_snapshot_graph(root, ip_address, default_ports)
+        root_info = [vertex_id, root_name, root_nonce]
+        self.add_node_in_snapshot_graph(root_info, ip_address, default_ports)
 
         node_stack = Stack()
         node_stack.push(ip_to_hex_string(ip_address))
@@ -48,6 +48,7 @@ class Graph:
             _vertex_id = self.vertex_snapshot[_vertex_hex]
 
             if not self.graph[_vertex_id].visited:
+                self.graph[_vertex_id].visited = True
                 if self.graph[_vertex_id].status:
                     node_start_time = timeit.default_timer()
                     url = self.graph[_vertex_id].link
@@ -55,7 +56,7 @@ class Graph:
                     if peers:
                         if peers[0]['applicationName'] != self.application_name:
                             self.graph[_vertex_id].status = False
-                            self.graph[_vertex_id].link = 'link with wrong application'
+                            self.graph[_vertex_id].link = 'wrong application'
                             continue
                     peers_id = []
                     for item in peers:
@@ -69,8 +70,8 @@ class Graph:
                         _peer_id = self.vertex_snapshot[_peer_hex]
                         if _peer_hex != _vertex_hex:
                             peers_id.append(_peer_id)
-                        else:
-                            self.update_root_name_nonce(_peer_id, peer_name, peer_nonce)
+
+                        self.update_root_name_nonce(_peer_id, peer_name, peer_nonce)
 
                         if not self.graph[_peer_id].visited:
                             node_stack.push(_peer_hex)
@@ -78,7 +79,7 @@ class Graph:
                     self.graph[_vertex_id].peers = list(dict.fromkeys(peers_id))
                     node_stop_time = timeit.default_timer()
                     self.graph[_vertex_id].time_init = node_stop_time - node_start_time
-            self.graph[_vertex_id].visited = True
+
         stop_time = timeit.default_timer()
         self.time_traversal_graph = stop_time - start_time
         print("time of traversing the graph: ", self.time_traversal_graph)

@@ -1,9 +1,8 @@
-
 import csv
 
 
 def sort_nodes_by_number_peers(all_nodes):
-    result = sorted(all_nodes.items, key=lambda x: x[1]['number_peers'], reverse=True)
+    result = sorted(all_nodes.items(), key=lambda x: x[1]['number_peers'], reverse=True)
     return result
 
 
@@ -19,16 +18,17 @@ def get_nodes_with_status(nodes_info):
 
 
 def output_items_to_csv_file(headers, items):
-    fieldnames = headers
-    with open('nodes_details.csv', 'w') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+    field_names = headers
+    file_name = 'nodes_details.csv'
+    with open(file_name, 'w') as csv_file:
+        writer = csv.DictWriter(csv_file, fieldnames=field_names)
         writer.writeheader()
 
         for item in items:
             vertex_id = item[0].split('-')[1]
             row_info = dict()
-            row_info.update({fieldnames[0]: vertex_id})
+            row_info.update({field_names[0]: vertex_id})
             row_info.update(item[1])
             writer.writerow(row_info)
 
-    csvfile.close()
+    csv_file.close()
