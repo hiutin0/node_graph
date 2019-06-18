@@ -1,4 +1,4 @@
 
 
-def remove_char_of_string(position, str):
-    return str[:position] + str[position+1:]
+def remove_char_of_string(position, _str):
+    return _str[:position] + _str[position+1:]

@@ -132,10 +132,10 @@ class GraphDB:
         headers_concatenation = stringopc.remove_char_of_string(1, headers_concatenation)
         headers_concatenation = stringopc.remove_char_of_string(len(headers_concatenation) - 2, headers_concatenation)
 
-        add_extension_command = "create EXTENSION timescaledb CASCADE;"
-        drop_extension_command = "drop EXTENSION timescaledb CASCADE;"
+        add_extension_command = "CREATE EXTENSION timescaledb CASCADE;"
+        drop_extension_command = "DROP EXTENSION timescaledb CASCADE;"
         create_table_command = "CREATE TABLE IF NOT EXISTS " + table_name + headers_concatenation
-        create_hypertable_command = "select create_hypertable ('" + table_name + "', '" + headers[0][0] + "')"
+        create_hypertable_command = "SELECT CREATE_HYPERTABLE ('" + table_name + "', '" + headers[0][0] + "')"
 
         conn = psycopg2.connect(database=db_name, user=self.user, password=self.password)
         conn.autocommit = True
@@ -164,6 +164,30 @@ class GraphDB:
             conn.autocommit = True
             cursor = conn.cursor()
             cursor.execute("INSERT INTO %s %s VALUES %s;" % (table_name, headers, values))
+            conn.close()
+
+    def update_item_with_query_content(self, query_content, update_content, table_name, db_name=''):
+        db_name = self.get_db_name(db_name)
+
+        if self.check_table(table_name, db_name):
+            conn = psycopg2.connect(database=db_name, user=self.user, password=self.password)
+            conn.autocommit = True
+            cursor = conn.cursor()
+            update_item_command = "UPDATE " + table_name + " SET " + update_content[0] + " = " + update_content[1] + \
+                                  " WHERE time = "  + query_content[0] + " AND " + query_content[1] + \
+                                  " = " + query_content[2] + ";"
+            cursor.execute(update_item_command)
+            conn.close()
+
+    def delete_item_with_query_content(self, query_content, table_name, db_name=''):
+        db_name = self.get_db_name(db_name)
+        if self.check_table(table_name, db_name):
+            conn = psycopg2.connect(database=db_name, user=self.user, password=self.password)
+            conn.autocommit = True
+            cursor = conn.cursor()
+            delete_item_command = "DELETE FROM " + table_name + " WHERE " + \
+                                  query_content[0] + " = " + query_content[1]
+            cursor.execute(delete_item_command)
             conn.close()
 
 if __name__ == "__main__":
