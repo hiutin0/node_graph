@@ -107,12 +107,43 @@ class GraphDB:
         headers_concatenation = stringopc.remove_char_of_string(1, headers_concatenation)
         headers_concatenation = stringopc.remove_char_of_string(len(headers_concatenation) - 2, headers_concatenation)
 
-        create_table_command = "CREATE TABLE " + table_name + headers_concatenation
+        create_table_command = "CREATE TABLE IF NOT EXISTS " + table_name + headers_concatenation
 
         conn = psycopg2.connect(database=db_name, user=self.user, password=self.password)
         conn.autocommit = True
         cursor = conn.cursor()
         cursor.execute(create_table_command)
+        conn.close()
+
+    def create_hypertable(self, table_name, headers, db_name=''):
+        db_name = self.get_db_name(db_name)
+
+        headers_concatenation = "("
+        for position in range(len(headers)):
+            if len(headers[position]) != 3:
+                msg = "Given headers are not correct"
+                logging.error(msg)
+            else:
+                for item in headers[position]:
+                    if item:
+                        headers_concatenation = headers_concatenation + " " + item
+                headers_concatenation = headers_concatenation + ","
+        headers_concatenation = headers_concatenation + ")"
+        headers_concatenation = stringopc.remove_char_of_string(1, headers_concatenation)
+        headers_concatenation = stringopc.remove_char_of_string(len(headers_concatenation) - 2, headers_concatenation)
+
+        add_extension_command = "create EXTENSION timescaledb CASCADE;"
+        drop_extension_command = "drop EXTENSION timescaledb CASCADE;"
+        create_table_command = "CREATE TABLE IF NOT EXISTS " + table_name + headers_concatenation
+        create_hypertable_command = "select create_hypertable ('" + table_name + "', '" + headers[0][0] + "')"
+
+        conn = psycopg2.connect(database=db_name, user=self.user, password=self.password)
+        conn.autocommit = True
+        cursor = conn.cursor()
+        cursor.execute(add_extension_command)
+        cursor.execute(create_table_command)
+        cursor.execute(create_hypertable_command)
+        cursor.execute(drop_extension_command)
         conn.close()
 
     def drop_table(self, table_name, db_name=''):
@@ -125,27 +156,33 @@ class GraphDB:
             cursor.execute("DROP TABLE %s;" % table_name)
             conn.close()
 
-    def insert_item(self, table_name, db_name=''):
+    def insert_item(self, headers, values, table_name, db_name=''):
         db_name = self.get_db_name(db_name)
 
         if self.check_table(table_name, db_name):
             conn = psycopg2.connect(database=db_name, user=self.user, password=self.password)
             conn.autocommit = True
             cursor = conn.cursor()
-            cursor.execute("DROP TABLE %s;" % table_name)
+            cursor.execute("INSERT INTO %s %s VALUES %s;" % (table_name, headers, values))
             conn.close()
 
 if __name__ == "__main__":
     vsys_db_name = 'vsys_nodes_db'
-    vsys_table_name = 'node_details'
+    vsys_table_name = 'node_details_hypertable'
+
+    headers = "(vendor_id, vendor_name)"
+    values = "(2, 'abc')"
     vsys_db = GraphDB('localhost', 'DBNAME', 'aaronyu', 'PASSWORD')
     vsys_db.start_postgresql_wait(1)
 
     if not vsys_db.check_db(vsys_db_name):
         vsys_db.create_db(vsys_db_name)
 
-    if not vsys_db.check_table(vsys_table_name, vsys_db_name):
-        vsys_db.create_table(vsys_table_name, [['vendor_id', 'SERIAL', 'PRIMARY KEY'], ['vendor_name', 'VARCHAR(255)', 'NOT NULL']], vsys_db_name)
+    # vsys_db.drop_table(vsys_table_name, vsys_db_name)
 
-    vsys_db.drop_table('vendors', vsys_db_name)
+    # vsys_db.create_table(vsys_table_name, [['vendor_id', 'SERIAL', 'PRIMARY KEY'], ['vendor_name', 'VARCHAR(255)', 'NOT NULL']], vsys_db_name)
+
+    vsys_db.create_hypertable(vsys_table_name, [['time', 'timestamp', 'not null'], ['name', 'varchar(10)', 'null']], vsys_db_name)
+    # vsys_db.insert_item(headers, values, vsys_table_name, vsys_db_name)
+    # vsys_db.drop_table('vendors', vsys_db_name)
     vsys_db.stop_postgresql_wait(1)

@@ -62,5 +62,3 @@ class Node:
 
     def ip_hex(self):
         return ip_to_hex_string(self.ip_address)
-
-
