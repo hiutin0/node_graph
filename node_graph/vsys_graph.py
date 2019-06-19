@@ -7,9 +7,9 @@ import numpy as np
 
 
 class Graph:
-    def __init__(self, name):
+    def __init__(self, name, application_name):
         self.graph_name = name
-        self.application_name = 'V SYSTEMSM'
+        self.application_name = application_name
         self.vertex_snapshot = {}
         self.graph = {}
         self.time_traversal_graph = 0
