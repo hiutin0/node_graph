@@ -26,6 +26,28 @@ class GraphDB:
         os.popen(stop_command)
         time.sleep(wait_time)
 
+    def add_extension_timescale(self, db_name=''):
+        db_name = self.get_db_name(db_name)
+
+        conn = psycopg2.connect(database=db_name, user=self.user, password=self.password)
+        conn.autocommit = True
+        cursor = conn.cursor()
+
+        add_extension_command = "CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;"
+        cursor.execute(add_extension_command)
+        conn.close()
+
+    def drop_extension_timescale(self, db_name=''):
+        db_name = self.get_db_name(db_name)
+
+        conn = psycopg2.connect(database=db_name, user=self.user, password=self.password)
+        conn.autocommit = True
+        cursor = conn.cursor()
+
+        add_extension_command = "DROP EXTENSION timescaledb CASCADE;"
+        cursor.execute(add_extension_command)
+        conn.close()
+
     def get_db_name(self, db_name):
         if not db_name:
             return self.db_name
@@ -132,7 +154,7 @@ class GraphDB:
         headers_concatenation = stringopc.remove_char_of_string(1, headers_concatenation)
         headers_concatenation = stringopc.remove_char_of_string(len(headers_concatenation) - 2, headers_concatenation)
 
-        add_extension_command = "CREATE EXTENSION timescaledb CASCADE;"
+
         drop_extension_command = "DROP EXTENSION timescaledb CASCADE;"
         create_table_command = "CREATE TABLE IF NOT EXISTS " + table_name + headers_concatenation
         create_hypertable_command = "SELECT CREATE_HYPERTABLE ('" + table_name + "', '" + headers[0][0] + "')"
@@ -140,7 +162,7 @@ class GraphDB:
         conn = psycopg2.connect(database=db_name, user=self.user, password=self.password)
         conn.autocommit = True
         cursor = conn.cursor()
-        cursor.execute(add_extension_command)
+
         cursor.execute(create_table_command)
         cursor.execute(create_hypertable_command)
         cursor.execute(drop_extension_command)

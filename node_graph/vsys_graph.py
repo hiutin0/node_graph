@@ -4,6 +4,7 @@ from utils.api_operation import *
 from node import *
 import timeit
 import numpy as np
+from graph_db import GraphDB
 
 
 class Graph:
@@ -13,6 +14,49 @@ class Graph:
         self.vertex_snapshot = {}
         self.graph = {}
         self.time_traversal_graph = 0
+        self.graph_db = None
+
+    def initialize_db(self, hostname, user_name, password):
+        db_name = self.graph_name
+
+        table_time = 'timestamp_to_time_id'
+        table_time_headers = [['time', 'timestamp', 'not null'], ['time_id', 'bigint', 'not null']]
+
+        table_nodes_id = 'nodes_id'
+        table_nodes_id_headers = [['node_ip', 'inet', 'not null'], ['vertex_id', 'bigint', 'not null']]
+
+        hypertable_nodes_all = 'nodes_all'
+        hypertable_nodes_all_headers = [['time', 'timestamp', 'not null'], ['vertex_id', 'bigint', 'not null'],
+                                        ['ip_address', 'inet', 'not null'],
+                                        ['port', 'int', None], ['status', 'boolean', 'not null'],
+                                        ['node_name', 'varchar(256)', 'not null'], ['node_nonce', 'int', 'not null'],
+                                        ['number_peers', 'int', 'not null'], ['address', 'varchar(40)', None],
+                                        ['height', 'bigint', None], ['version', 'varchar(16)', None],
+                                        ['location', 'varchar(128)', None], ['time_basic_info', 'real', 'not null'],
+                                        ['time_get_details', 'real', 'not null']]
+
+        self.graph_db = GraphDB(hostname, db_name, user_name, password)
+        self.graph_db.start_postgresql_wait(1)
+
+        try:
+            if not self.graph_db.check_db():
+                self.graph_db.create_db()
+
+            if not self.graph_db.check_table(table_time):
+                self.graph_db.create_table(table_time, table_time_headers)
+
+            if not self.graph_db.check_table(table_nodes_id):
+                self.graph_db.create_table(table_nodes_id, table_nodes_id_headers)
+
+            self.graph_db.add_extension_timescale()
+
+            if not self.graph_db.check_table(hypertable_nodes_all):
+                self.graph_db.create_hypertable(hypertable_nodes_all, hypertable_nodes_all_headers)
+        except:
+            msg = "Some errors in initialization of database!"
+            throw_error(msg, InvalidInputException)
+        finally:
+            self.graph_db.stop_postgresql_wait(1)
 
     def add_node_in_snapshot_graph(self, node_info, ip_address, ports):
         vertex_id = node_info[0]

@@ -20,17 +20,22 @@ default_ports = ['9922']
 
 # set graph name
 graph_name = 'vsys'
-application_name = 'V SYSTEMSM'
+system_application_name = 'V SYSTEMSM'
+
+# set hostname, db name and pwd
+hostname = 'localhost'
+user_name = 'aaronyu'
+password = 'pwd'
 
 
 class NodeAnalysis:
-    def __init__(self, name, blockchain_application_name, ip, ports):
+    def __init__(self, name, application_name, ip, ports):
         self.ip = ip
         self.ports = ports
-        self.new_graph = Graph(name, blockchain_application_name)
+        self.new_graph = Graph(name, application_name)
 
     def construct_graph(self):
-        self.new_graph.traversal_graph_dfs(ip_address)
+        self.new_graph.traversal_graph_dfs(self.ip)
         graph_network = self.new_graph.construct_graph_network()
 
         print("all nodes: ", graph_network)
@@ -129,6 +134,7 @@ class NodeAnalysis:
 
 
 if __name__ == "__main__":
-    a = 1
-    print(1)
+    vsys_node_analysis = NodeAnalysis(graph_name, system_application_name, ip_address, default_ports)
+    vsys_node_analysis.new_graph.initialize_db(hostname, user_name, password)
+    # vsys_node_analysis.construct_graph()
 
