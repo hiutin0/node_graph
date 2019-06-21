@@ -13,6 +13,18 @@ class NetworkException(MyException):
     pass
 
 
+class TraversalGraphException(MyException):
+    pass
+
+
+class InvalidInitializationDB(MyException):
+    pass
+
+
+class InvalidInsertItemDB(MyException):
+    pass
+
+
 def throw_error(msg, exception=MyException):
     logging.error(msg)
     if THROW_EXCEPTION_ON_ERROR:

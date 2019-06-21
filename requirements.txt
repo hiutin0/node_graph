@@ -1,2 +1,6 @@
+Python 3.7.2+
+PostgreSQL
+TimescaleDB
+
 requests
 networkx

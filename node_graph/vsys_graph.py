@@ -2,9 +2,11 @@ from lib.graph_operations import *
 from lib.stack import Stack
 from utils.api_operation import *
 from node import *
+from utils.errors import *
 import timeit
 import numpy as np
 from graph_db import GraphDB
+import psycopg2
 
 
 class Graph:
@@ -15,119 +17,247 @@ class Graph:
         self.graph = {}
         self.time_traversal_graph = 0
         self.graph_db = None
+        self.root_update = False
 
-    def initialize_db(self, hostname, user_name, password):
+        self.db_table_time = 'timestamp_to_time_id'
+        self.db_table_time_headers = '(time, time_id)'
+        self.db_table_time_headers_complete = [['time', 'timestamp', 'not null'],
+                                               ['time_id', 'bigint', 'not null']]
+
+        self.db_table_nodes_id = 'nodes_id'
+        self.db_table_nodes_id_headers_1 = 'node_ip'
+        self.db_table_nodes_id_headers_2 = 'vertex_id'
+        self.db_table_nodes_id_headers_3 = 'port'
+        self.db_table_nodes_id_headers_complete = [['node_ip', 'inet', 'primary key'],
+                                                   ['vertex_id', 'bigint', 'not null'],
+                                                   ['port', 'int', None]]
+
+        self.db_hypertable_nodes_all = 'nodes_all'
+        self.db_hypertable_nodes_all_headers = ''
+        self.db_hypertable_nodes_all_headers_complete = [['time', 'timestamp', 'not null'],
+                                                         ['vertex_id', 'bigint', 'not null'],
+                                                         ['ip_address', 'inet', 'not null'],
+                                                         ['port', 'int', None],
+                                                         ['status', 'boolean', 'not null'],
+                                                         ['node_name', 'varchar(256)', 'not null'],
+                                                         ['node_nonce', 'int', 'not null'],
+                                                         ['number_peers', 'int', 'not null'],
+                                                         ['address', 'varchar(40)', None],
+                                                         ['height', 'bigint', None],
+                                                         ['version', 'varchar(16)', None],
+                                                         ['location', 'varchar(128)', None],
+                                                         ['time_get_basic_info', 'real', 'not null'],
+                                                         ['time_get_details', 'real', 'not null']]
+
+    def initialize_db(self, hostname, user_name, password, clear_old_db=False):
         db_name = self.graph_name
-
-        table_time = 'timestamp_to_time_id'
-        table_time_headers = [['time', 'timestamp', 'not null'], ['time_id', 'bigint', 'not null']]
-
-        table_nodes_id = 'nodes_id'
-        table_nodes_id_headers = [['node_ip', 'inet', 'not null'], ['vertex_id', 'bigint', 'not null']]
-
-        hypertable_nodes_all = 'nodes_all'
-        hypertable_nodes_all_headers = [['time', 'timestamp', 'not null'], ['vertex_id', 'bigint', 'not null'],
-                                        ['ip_address', 'inet', 'not null'],
-                                        ['port', 'int', None], ['status', 'boolean', 'not null'],
-                                        ['node_name', 'varchar(256)', 'not null'], ['node_nonce', 'int', 'not null'],
-                                        ['number_peers', 'int', 'not null'], ['address', 'varchar(40)', None],
-                                        ['height', 'bigint', None], ['version', 'varchar(16)', None],
-                                        ['location', 'varchar(128)', None], ['time_basic_info', 'real', 'not null'],
-                                        ['time_get_details', 'real', 'not null']]
 
         self.graph_db = GraphDB(hostname, db_name, user_name, password)
         self.graph_db.start_postgresql_wait(1)
 
         try:
+            if clear_old_db:
+                self.graph_db.drop_db(db_name)
+
             if not self.graph_db.check_db():
                 self.graph_db.create_db()
 
-            if not self.graph_db.check_table(table_time):
-                self.graph_db.create_table(table_time, table_time_headers)
+            if not self.graph_db.check_table(self.db_table_time):
+                self.graph_db.create_table(self.db_table_time, self.db_table_time_headers_complete)
 
-            if not self.graph_db.check_table(table_nodes_id):
-                self.graph_db.create_table(table_nodes_id, table_nodes_id_headers)
+            if not self.graph_db.check_table(self.db_table_nodes_id):
+                self.graph_db.create_table(self.db_table_nodes_id, self.db_table_nodes_id_headers_complete)
 
             self.graph_db.add_extension_timescale()
 
-            if not self.graph_db.check_table(hypertable_nodes_all):
-                self.graph_db.create_hypertable(hypertable_nodes_all, hypertable_nodes_all_headers)
-        except:
+            if not self.graph_db.check_table(self.db_hypertable_nodes_all):
+                self.graph_db.create_hypertable(self.db_hypertable_nodes_all,
+                                                self.db_hypertable_nodes_all_headers_complete)
+        except InvalidInputException:
             msg = "Some errors in initialization of database!"
             throw_error(msg, InvalidInputException)
         finally:
             self.graph_db.stop_postgresql_wait(1)
 
-    def add_node_in_snapshot_graph(self, node_info, ip_address, ports):
-        vertex_id = node_info[0]
-        vertex_name = node_info[1]
-        vertex_nonce = node_info[2]
-        new_node = Node(vertex_id, ip_address, ports, vertex_name, vertex_nonce)
-        self.vertex_snapshot.update({ip_to_hex_string(ip_address): vertex_id})
-        self.graph.update({vertex_id: new_node})
+    def update_details_to_nodes_all(self, db_restart=True, db_close=True):
+        if db_restart:
+            self.graph_db.start_postgresql_wait(1)
 
-    def update_root_name_nonce(self, vertex_id, peer_name, peer_nonce):
-        if vertex_id == 0:
-            if not self.graph[vertex_id].node_name:
-                self.graph[vertex_id].node_name = peer_name
-            if not self.graph[vertex_id].node_nonce:
-                self.graph[vertex_id].node_nonce = peer_nonce
+        if db_close:
+            self.graph_db.stop_postgresql_wait(1)
+
+    def get_next_vertex_id(self, cursor=None, db_restart=True, db_close=True):
+        if db_restart:
+            self.graph_db.start_postgresql_wait(1)
+
+        get_nodes_command = "SELECT * FROM " + self.db_table_nodes_id + ";"
+        all_nodes_id = self.graph_db.query_items_with_command(get_nodes_command, cursor)
+
+        if db_close:
+            self.graph_db.stop_postgresql_wait(1)
+
+        if all_nodes_id:
+            return len(all_nodes_id)
+        else:
+            return 0
+
+    def get_vertex_id_with_ip(self, ip_address, cursor=None, db_restart=True, db_close=True):
+        if db_restart:
+            self.graph_db.start_postgresql_wait(1)
+
+        check_vertex_command = "SELECT * FROM " + self.db_table_nodes_id + " WHERE " + \
+                               self.db_table_nodes_id_headers_1 + "='" + ip_address + "';"
+        vertex_info = self.graph_db.query_items_with_command(check_vertex_command, cursor)
+
+        if db_close:
+            self.graph_db.stop_postgresql_wait(1)
+
+        if vertex_info:
+            return vertex_info[0][1]
+        else:
+            return None
+
+    def add_vertex_to_table_nodes_id(self, node_basic_info, cursor=None, db_restart=True, db_close=True):
+        ip_address = node_basic_info[0]
+        vertex_id = node_basic_info[1]
+        port = node_basic_info[2]
+        if port:
+            item = "('" + ip_address + "', " + str(vertex_id) + ", " + str(port) + ");"
+            db_table_nodes_id_headers = '(' + self.db_table_nodes_id_headers_1 + ',' + \
+                                        self.db_table_nodes_id_headers_2 + ',' + \
+                                        self.db_table_nodes_id_headers_3 + ')'
+        else:
+            item = "('" + ip_address + "', " + str(vertex_id) + ");"
+            db_table_nodes_id_headers = '(' + self.db_table_nodes_id_headers_1 + ',' + \
+                                        self.db_table_nodes_id_headers_2 + ')'
+
+        if db_restart:
+            self.graph_db.start_postgresql_wait(1)
+
+        self.graph_db.insert_item(db_table_nodes_id_headers, item, self.db_table_nodes_id, cursor, db_name='')
+
+        if db_close:
+            self.graph_db.stop_postgresql_wait(1)
+
+    def update_root_name_nonce(self, root_node, vertex_id, peer_name, peer_nonce):
+        if not self.root_update:
+            if vertex_id == root_node.id:
+                if not root_node.node_name:
+                    root_node.node_name = peer_name
+                if not root_node.node_nonce:
+                    root_node.node_nonce = peer_nonce
+                if root_node.node_name and root_node.node_nonce:
+                    self.root_update = True
 
     def traversal_graph_dfs(self, ip_address):
-        vertex_id = 0
-        root_name = ''
-        root_nonce = ''
-        default_ports = set_api_default_port()
+        if not self.graph_db:
+            msg = "Traversal graph by dfs requires initialization of a graph database!"
+            throw_error(msg, TraversalGraphException)
 
-        root_info = [vertex_id, root_name, root_nonce]
-        self.add_node_in_snapshot_graph(root_info, ip_address, default_ports)
+        self.graph_db.start_postgresql_wait(1)
+        conn = psycopg2.connect(database=self.graph_db.db_name, user=self.graph_db.user,
+                                password=self.graph_db.password)
+        conn.autocommit = True
+        cursor = conn.cursor()
 
-        node_stack = Stack()
-        node_stack.push(ip_to_hex_string(ip_address))
+        nodes_all = {}
 
-        start_time = timeit.default_timer()
+        try:
+            next_vertex_id = self.get_next_vertex_id(cursor=cursor, db_restart=False, db_close=False)
 
-        while not node_stack.is_empty():
-            _vertex_hex = node_stack.pop()
-            _vertex_id = self.vertex_snapshot[_vertex_hex]
+            default_ports = set_api_default_port()
+            root_id = self.get_vertex_id_with_ip(ip_address, cursor=cursor, db_restart=False, db_close=False)
 
-            if not self.graph[_vertex_id].visited:
-                self.graph[_vertex_id].visited = True
-                if self.graph[_vertex_id].status:
-                    node_start_time = timeit.default_timer()
-                    url = self.graph[_vertex_id].link
-                    peers = get_peer_nodes(url)
-                    if peers:
-                        if peers[0]['applicationName'] != self.application_name:
-                            self.graph[_vertex_id].status = False
-                            self.graph[_vertex_id].link = 'wrong application'
-                            continue
-                    peers_id = []
-                    for item in peers:
-                        [ip, port, peer_name, peer_nonce] = parse_ip_port_name_nonce(item)
-                        _peer_hex = ip_to_hex_string(ip)
-                        if _peer_hex not in self.vertex_snapshot:
-                            vertex_id += 1
-                            vertex_info = [vertex_id, peer_name, peer_nonce]
-                            self.add_node_in_snapshot_graph(vertex_info, ip, default_ports + [port])
+            if not root_id:
+                if root_id != 0:
+                    root_id = next_vertex_id
+                    next_vertex_id += 1
+                    root_basic_info = [ip_address, root_id, default_ports[0]]
+                    self.add_vertex_to_table_nodes_id(root_basic_info, cursor=cursor, db_restart=False, db_close=False)
 
-                        _peer_id = self.vertex_snapshot[_peer_hex]
-                        if _peer_hex != _vertex_hex:
-                            peers_id.append(_peer_id)
+            root_name = ''
+            root_nonce = ''
+            root = Node(root_id, ip_address, default_ports, root_name, root_nonce)
+            self.root_update = False
 
-                        self.update_root_name_nonce(_peer_id, peer_name, peer_nonce)
+            nodes_all.update({ip_address: root})
+            node_stack = Stack()
+            node_stack.push(ip_address)
 
-                        if not self.graph[_peer_id].visited:
-                            node_stack.push(_peer_hex)
+            start_time = timeit.default_timer()
 
-                    self.graph[_vertex_id].peers = list(dict.fromkeys(peers_id))
-                    node_stop_time = timeit.default_timer()
-                    self.graph[_vertex_id].time_init = node_stop_time - node_start_time
+            while not node_stack.is_empty():
+                _vertex_ip = node_stack.pop()
+                _vertex = nodes_all[_vertex_ip]
 
-        stop_time = timeit.default_timer()
-        self.time_traversal_graph = stop_time - start_time
-        print("time of traversing the graph: ", self.time_traversal_graph)
-        print("total number of vertex in the graph: ", len(self.vertex_snapshot))
+                if not _vertex.visited:
+                    _vertex.visited = True
+                    if _vertex.status:
+                        node_start_time = timeit.default_timer()
+                        url = _vertex.link
+                        peers = get_peer_nodes(url)
+                        if peers:
+                            if peers[0]['applicationName'] != self.application_name:
+                                _vertex.status = False
+                                _vertex.link = 'wrong application'
+                                continue
+                        peers_id = []
+                        for item in peers:
+                            [_peer_ip, port, peer_name, peer_nonce] = parse_ip_port_name_nonce(item)
+                            _peer_id = self.get_vertex_id_with_ip(_peer_ip, cursor=cursor,
+                                                                  db_restart=False,
+                                                                  db_close=False)
+                            if not _peer_id:
+                                if _peer_id != 0:
+                                    _peer_id = next_vertex_id
+                                    new_node = Node(_peer_id, _peer_ip, default_ports + [port], peer_name, peer_nonce)
+                                    new_node_basic_info = [_peer_ip, _peer_id, new_node.port]
+
+                                    self.add_vertex_to_table_nodes_id(new_node_basic_info,
+                                                                      cursor=cursor,
+                                                                      db_restart=False,
+                                                                      db_close=False)
+                                    next_vertex_id += 1
+                                    if _peer_ip not in nodes_all:
+                                        nodes_all.update({_peer_ip: new_node})
+                                else:
+                                    if _peer_ip not in nodes_all:
+                                        new_node = Node(_peer_id, _peer_ip, default_ports + [port], peer_name, peer_nonce)
+                                        nodes_all.update({_peer_ip: new_node})
+                            else:
+                                if _peer_ip not in nodes_all:
+                                    new_node = Node(_peer_id, _peer_ip, default_ports + [port], peer_name, peer_nonce)
+                                    nodes_all.update({_peer_ip: new_node})
+
+                            _peer = nodes_all[_peer_ip]
+
+                            if _peer_ip != _vertex_ip:
+                                peers_id.append(_peer_id)
+
+                            self.update_root_name_nonce(root, _peer_id, peer_name, peer_nonce)
+
+                            if not _peer.visited:
+                                node_stack.push(_peer_ip)
+
+                            _peer.peers = list(dict.fromkeys(peers_id))
+                            node_stop_time = timeit.default_timer()
+                            _peer.time_get_basic_info = node_stop_time - node_start_time
+
+            stop_time = timeit.default_timer()
+            self.time_traversal_graph = stop_time - start_time
+
+        except TraversalGraphException:
+            msg = "Traversal graph by dfs has error!"
+            throw_error(msg, TraversalGraphException)
+
+        finally:
+            conn.close()
+            self.graph_db.stop_postgresql_wait(1)
+
+        print("time of traversing the current graph: ", self.time_traversal_graph)
+        print("total number of vertex in the current graph: ", len(nodes_all))
+
+        return nodes_all
 
     def construct_graph_network(self):
         network = {}

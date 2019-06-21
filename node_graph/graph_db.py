@@ -1,12 +1,8 @@
-import logging
 import psycopg2
 import os
 import time
 import lib.string_operations as stringopc
-
-
-logging.basicConfig(level=logging.INFO)
-
+from utils.errors import *
 
 class GraphDB:
     def __init__(self, hostname, db_name, user, password=None):
@@ -53,6 +49,15 @@ class GraphDB:
             return self.db_name
         else:
             return db_name
+
+    def get_cursor(self, db_name, cursor):
+        if not cursor:
+            conn = psycopg2.connect(database=db_name, user=self.user, password=self.password)
+            conn.autocommit = True
+            cursor = conn.cursor()
+            return [cursor, conn]
+        else:
+            return [cursor, None]
 
     def check_db(self, db_name=''):
         db_name = self.get_db_name(db_name)
@@ -178,15 +183,33 @@ class GraphDB:
             cursor.execute("DROP TABLE %s;" % table_name)
             conn.close()
 
-    def insert_item(self, headers, values, table_name, db_name=''):
+    def query_items_with_command(self, query_command, cursor=None, db_name=''):
         db_name = self.get_db_name(db_name)
+        [cursor, conn] = self.get_cursor(db_name, cursor)
 
-        if self.check_table(table_name, db_name):
-            conn = psycopg2.connect(database=db_name, user=self.user, password=self.password)
-            conn.autocommit = True
-            cursor = conn.cursor()
+        results = None
+        try:
+            cursor.execute(query_command)
+            results = cursor.fetchall()
+        except InvalidInputException:
+            msg = "Given query command has error!"
+            throw_error(msg, InvalidInputException)
+        finally:
+            if conn:
+                conn.close()
+        return results
+
+    def insert_item(self, headers, values, table_name, cursor=None, db_name=''):
+        db_name = self.get_db_name(db_name)
+        [cursor, conn] = self.get_cursor(db_name, cursor)
+        try:
             cursor.execute("INSERT INTO %s %s VALUES %s;" % (table_name, headers, values))
-            conn.close()
+        except InvalidInsertItemDB:
+            msg = "Insert item to DB has error!"
+            throw_error(msg, InvalidInsertItemDB)
+        finally:
+            if conn:
+                conn.close()
 
     def update_item_with_query_content(self, query_content, update_content, table_name, db_name=''):
         db_name = self.get_db_name(db_name)

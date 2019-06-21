@@ -1,4 +1,5 @@
 from utils.ip_operation import *
+import logging
 from utils.errors import *
 from vsys_graph import Graph
 
@@ -13,6 +14,10 @@ import matplotlib.pyplot as plt
 
 # basic setting of error
 set_throw_on_error()
+
+
+logging.basicConfig(level=logging.ERROR)
+
 
 # set ip address of root and default ports
 ip_address = '54.147.255.148'
@@ -136,5 +141,9 @@ class NodeAnalysis:
 if __name__ == "__main__":
     vsys_node_analysis = NodeAnalysis(graph_name, system_application_name, ip_address, default_ports)
     vsys_node_analysis.new_graph.initialize_db(hostname, user_name, password)
+    # vsys_node_analysis.new_graph.load_vertex_from_nodes_id()
+    nodes_all = vsys_node_analysis.new_graph.traversal_graph_dfs(ip_address)
+    print(nodes_all)
+    # vsys_node_analysis.new_graph.update_vertex_to_nodes_id()
     # vsys_node_analysis.construct_graph()
 
