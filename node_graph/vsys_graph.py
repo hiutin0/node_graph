@@ -6,7 +6,7 @@ from utils.errors import *
 import timeit
 import numpy as np
 from graph_db import GraphDB
-import psycopg2
+from time import gmtime, strftime
 
 
 class Graph:
@@ -15,11 +15,19 @@ class Graph:
         self.application_name = application_name
         self.vertex_snapshot = {}
         self.graph = {}
+        self.current_timestamp = None
         self.time_traversal_graph = 0
         self.graph_db = None
         self.root_update = False
 
+        self.db_running_status = False
+        self.db_conn_status = False
+        self.db_cursor = None
+        self.db_conn = None
+
         self.db_table_time = 'timestamp_to_time_id'
+        self.db_table_time_headers_1 = 'time'
+        self.db_table_time_headers_2 = 'time_id'
         self.db_table_time_headers = '(time, time_id)'
         self.db_table_time_headers_complete = [['time', 'timestamp', 'not null'],
                                                ['time_id', 'bigint', 'not null']]
@@ -53,7 +61,7 @@ class Graph:
         db_name = self.graph_name
 
         self.graph_db = GraphDB(hostname, db_name, user_name, password)
-        self.graph_db.start_postgresql_wait(1)
+        self.graph_db.start_db()
 
         try:
             if clear_old_db:
@@ -69,7 +77,6 @@ class Graph:
                 self.graph_db.create_table(self.db_table_nodes_id, self.db_table_nodes_id_headers_complete)
 
             self.graph_db.add_extension_timescale()
-
             if not self.graph_db.check_table(self.db_hypertable_nodes_all):
                 self.graph_db.create_hypertable(self.db_hypertable_nodes_all,
                                                 self.db_hypertable_nodes_all_headers_complete)
@@ -77,103 +84,41 @@ class Graph:
             msg = "Some errors in initialization of database!"
             throw_error(msg, InvalidInputException)
         finally:
-            self.graph_db.stop_postgresql_wait(1)
+            self.graph_db.close_db()
 
-    def update_details_to_nodes_all(self, db_restart=True, db_close=True):
-        if db_restart:
-            self.graph_db.start_postgresql_wait(1)
+    def get_current_timestamp(self):
+        self.current_timestamp = strftime("%Y-%m-%d %H:%M", gmtime()) + ':00'
 
-        if db_close:
-            self.graph_db.stop_postgresql_wait(1)
+    def get_next_time_id_in_db(self):
+        get_number_of_timestamps_command = "SELECT COUNT(*) FROM " + self.db_table_time + ";"
+        number = self.graph_db.query_items_with_command(get_number_of_timestamps_command)
+        return number[0][0]
 
-    def get_next_vertex_id(self, cursor=None, db_restart=True, db_close=True):
-        if db_restart:
-            self.graph_db.start_postgresql_wait(1)
-
-        get_nodes_command = "SELECT * FROM " + self.db_table_nodes_id + ";"
-        all_nodes_id = self.graph_db.query_items_with_command(get_nodes_command, cursor)
-
-        if db_close:
-            self.graph_db.stop_postgresql_wait(1)
-
-        if all_nodes_id:
-            return len(all_nodes_id)
-        else:
-            return 0
-
-    def get_vertex_id_with_ip(self, ip_address, cursor=None, db_restart=True, db_close=True):
-        if db_restart:
-            self.graph_db.start_postgresql_wait(1)
-
-        check_vertex_command = "SELECT * FROM " + self.db_table_nodes_id + " WHERE " + \
-                               self.db_table_nodes_id_headers_1 + "='" + ip_address + "';"
-        vertex_info = self.graph_db.query_items_with_command(check_vertex_command, cursor)
-
-        if db_close:
-            self.graph_db.stop_postgresql_wait(1)
-
-        if vertex_info:
-            return vertex_info[0][1]
-        else:
-            return None
-
-    def add_vertex_to_table_nodes_id(self, node_basic_info, cursor=None, db_restart=True, db_close=True):
-        ip_address = node_basic_info[0]
-        vertex_id = node_basic_info[1]
-        port = node_basic_info[2]
-        if port:
-            item = "('" + ip_address + "', " + str(vertex_id) + ", " + str(port) + ");"
-            db_table_nodes_id_headers = '(' + self.db_table_nodes_id_headers_1 + ',' + \
-                                        self.db_table_nodes_id_headers_2 + ',' + \
-                                        self.db_table_nodes_id_headers_3 + ')'
-        else:
-            item = "('" + ip_address + "', " + str(vertex_id) + ");"
-            db_table_nodes_id_headers = '(' + self.db_table_nodes_id_headers_1 + ',' + \
-                                        self.db_table_nodes_id_headers_2 + ')'
-
-        if db_restart:
-            self.graph_db.start_postgresql_wait(1)
-
-        self.graph_db.insert_item(db_table_nodes_id_headers, item, self.db_table_nodes_id, cursor, db_name='')
-
-        if db_close:
-            self.graph_db.stop_postgresql_wait(1)
-
-    def update_root_name_nonce(self, root_node, vertex_id, peer_name, peer_nonce):
-        if not self.root_update:
-            if vertex_id == root_node.id:
-                if not root_node.node_name:
-                    root_node.node_name = peer_name
-                if not root_node.node_nonce:
-                    root_node.node_nonce = peer_nonce
-                if root_node.node_name and root_node.node_nonce:
-                    self.root_update = True
+    def add_timestamp_to_table_time(self, timestamp, time_id):
+        db_table_time_headers = "(" + self.db_table_time_headers_1 + ", " + self.db_table_time_headers_2 + ")"
+        item = "('" + timestamp + "', " + str(time_id) + ")"
+        self.graph_db.insert_item(db_table_time_headers, item, self.db_table_time)
 
     def traversal_graph_dfs(self, ip_address):
         if not self.graph_db:
             msg = "Traversal graph by dfs requires initialization of a graph database!"
             throw_error(msg, TraversalGraphException)
 
-        self.graph_db.start_postgresql_wait(1)
-        conn = psycopg2.connect(database=self.graph_db.db_name, user=self.graph_db.user,
-                                password=self.graph_db.password)
-        conn.autocommit = True
-        cursor = conn.cursor()
-
         nodes_all = {}
+        self.graph_db.start_db()
 
         try:
-            next_vertex_id = self.get_next_vertex_id(cursor=cursor, db_restart=False, db_close=False)
+            next_vertex_id = self.get_next_vertex_id()
 
             default_ports = set_api_default_port()
-            root_id = self.get_vertex_id_with_ip(ip_address, cursor=cursor, db_restart=False, db_close=False)
+            root_id = self.get_vertex_id_with_ip(ip_address)
 
             if not root_id:
                 if root_id != 0:
                     root_id = next_vertex_id
                     next_vertex_id += 1
                     root_basic_info = [ip_address, root_id, default_ports[0]]
-                    self.add_vertex_to_table_nodes_id(root_basic_info, cursor=cursor, db_restart=False, db_close=False)
+                    self.add_vertex_to_table_nodes_id(root_basic_info)
 
             root_name = ''
             root_nonce = ''
@@ -204,19 +149,14 @@ class Graph:
                         peers_id = []
                         for item in peers:
                             [_peer_ip, port, peer_name, peer_nonce] = parse_ip_port_name_nonce(item)
-                            _peer_id = self.get_vertex_id_with_ip(_peer_ip, cursor=cursor,
-                                                                  db_restart=False,
-                                                                  db_close=False)
+                            _peer_id = self.get_vertex_id_with_ip(_peer_ip)
                             if not _peer_id:
                                 if _peer_id != 0:
                                     _peer_id = next_vertex_id
                                     new_node = Node(_peer_id, _peer_ip, default_ports + [port], peer_name, peer_nonce)
                                     new_node_basic_info = [_peer_ip, _peer_id, new_node.port]
 
-                                    self.add_vertex_to_table_nodes_id(new_node_basic_info,
-                                                                      cursor=cursor,
-                                                                      db_restart=False,
-                                                                      db_close=False)
+                                    self.add_vertex_to_table_nodes_id(new_node_basic_info)
                                     next_vertex_id += 1
                                     if _peer_ip not in nodes_all:
                                         nodes_all.update({_peer_ip: new_node})
@@ -251,13 +191,51 @@ class Graph:
             throw_error(msg, TraversalGraphException)
 
         finally:
-            conn.close()
-            self.graph_db.stop_postgresql_wait(1)
+            self.graph_db.close_db()
 
         print("time of traversing the current graph: ", self.time_traversal_graph)
         print("total number of vertex in the current graph: ", len(nodes_all))
 
         return nodes_all
+
+    def get_next_vertex_id(self):
+        get_number_of_nodes_command = "SELECT COUNT(*) FROM " + self.db_table_nodes_id + ";"
+        number = self.graph_db.query_items_with_command(get_number_of_nodes_command)
+        return number[0][0]
+
+    def get_vertex_id_with_ip(self, ip_address):
+        check_vertex_command = "SELECT * FROM " + self.db_table_nodes_id + " WHERE " + \
+                               self.db_table_nodes_id_headers_1 + "='" + ip_address + "';"
+        vertex_info = self.graph_db.query_items_with_command(check_vertex_command)
+        if vertex_info:
+            return vertex_info[0][1]
+        else:
+            return None
+
+    def add_vertex_to_table_nodes_id(self, node_basic_info):
+        ip_address = node_basic_info[0]
+        vertex_id = node_basic_info[1]
+        port = node_basic_info[2]
+        if port:
+            item = "('" + ip_address + "', " + str(vertex_id) + ", " + str(port) + ");"
+            db_table_nodes_id_headers = '(' + self.db_table_nodes_id_headers_1 + ',' + \
+                                        self.db_table_nodes_id_headers_2 + ',' + \
+                                        self.db_table_nodes_id_headers_3 + ')'
+        else:
+            item = "('" + ip_address + "', " + str(vertex_id) + ");"
+            db_table_nodes_id_headers = '(' + self.db_table_nodes_id_headers_1 + ',' + \
+                                        self.db_table_nodes_id_headers_2 + ')'
+        self.graph_db.insert_item(db_table_nodes_id_headers, item, self.db_table_nodes_id)
+
+    def update_root_name_nonce(self, root_node, vertex_id, peer_name, peer_nonce):
+        if not self.root_update:
+            if vertex_id == root_node.id:
+                if not root_node.node_name:
+                    root_node.node_name = peer_name
+                if not root_node.node_nonce:
+                    root_node.node_nonce = peer_nonce
+                if root_node.node_name and root_node.node_nonce:
+                    self.root_update = True
 
     def construct_graph_network(self):
         network = {}
