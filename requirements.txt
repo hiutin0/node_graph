@@ -1,6 +1,8 @@
 Python 3.7.2+
 PostgreSQL (brew install postgres)
-TimescaleDB
+TimescaleDB 
+(https://docs.timescale.com/v1.3/getting-started/installation/macos/installation-homebrew)
+  - update xcode in MacOS
 
 requests
 networkx
