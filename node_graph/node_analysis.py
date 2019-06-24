@@ -49,23 +49,36 @@ class NodeAnalysis:
         else:
             time.sleep(self.wait_time)
 
-    def successive_node_analysis(self, rounds=1, time_gap=6, non_stop=False):
+    def successive_node_analysis(self, rounds=1, time_gap=12, non_stop=False):
+        self.new_graph.initialize_db(hostname, user_name, password, clear_old_db=True)
 
-        while rounds:
-            current_round_start_time = timeit.default_timer()
-            self.new_graph.initialize_db(hostname, user_name, password)
+        vsys_node_analysis.new_graph.graph_db.start_db()
+        try:
+            while rounds:
+                current_round_start_time = timeit.default_timer()
 
-            current_round_stop_time = timeit.default_timer()
+                vsys_node_analysis.new_graph.get_current_timestamp()
+                current_timestamp = vsys_node_analysis.new_graph.current_timestamp
+                next_time_id = vsys_node_analysis.new_graph.get_next_time_id_in_db()
 
-            self.wait_time = time_gap - int(current_round_stop_time - current_round_start_time)
+                vsys_node_analysis.new_graph.add_timestamp_to_table_time(current_timestamp, next_time_id)
+                # vsys_node_analysis.new_graph.traversal_graph_dfs(self.ip)
+                # nodes_and_matrix = vsys_node_analysis.new_graph.get_graph_symmetric_matrix()
+                # vsys_node_analysis.new_graph.get_nodes_detail(nodes_and_matrix, current_timestamp)
 
-            self.wait_time_after_analysis_finished()
-            rounds -= 1
-            if non_stop:
-                rounds += 1
+                current_round_stop_time = timeit.default_timer()
 
+                self.wait_time = time_gap - int(current_round_stop_time - current_round_start_time)
 
-
+                self.wait_time_after_analysis_finished()
+                rounds -= 1
+                if non_stop:
+                    rounds += 1
+        except:
+            msg = "Some error!"
+            throw_error(msg, InvalidInputException)
+        finally:
+            vsys_node_analysis.new_graph.graph_db.close_db()
 
     def construct_graph(self):
         self.new_graph.traversal_graph_dfs(self.ip)
@@ -168,17 +181,17 @@ class NodeAnalysis:
 
 if __name__ == "__main__":
     vsys_node_analysis = NodeAnalysis(graph_name, system_application_name, ip_address, default_ports)
-    # vsys_node_analysis.successive_node_analysis()
+    vsys_node_analysis.successive_node_analysis()
 
 
-    vsys_node_analysis.new_graph.initialize_db(hostname, user_name, password)
-    vsys_node_analysis.new_graph.graph_db.start_db()
-
-    next_time_id = vsys_node_analysis.new_graph.get_next_time_id_in_db()
-    print(next_time_id)
-    vsys_node_analysis.new_graph.get_current_timestamp()
-    timestamp = vsys_node_analysis.new_graph.current_timestamp
-    print(timestamp)
-    vsys_node_analysis.new_graph.add_timestamp_to_table_time(timestamp, next_time_id)
-    vsys_node_analysis.new_graph.graph_db.close_db()
+    # vsys_node_analysis.new_graph.initialize_db(hostname, user_name, password)
+    # vsys_node_analysis.new_graph.graph_db.start_db()
+    #
+    # next_time_id = vsys_node_analysis.new_graph.get_next_time_id_in_db()
+    # print(next_time_id)
+    # vsys_node_analysis.new_graph.get_current_timestamp()
+    # timestamp = vsys_node_analysis.new_graph.current_timestamp
+    # print(timestamp)
+    # vsys_node_analysis.new_graph.add_timestamp_to_table_time(timestamp, next_time_id)
+    # vsys_node_analysis.new_graph.graph_db.close_db()
 

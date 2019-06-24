@@ -7,6 +7,7 @@ import timeit
 import numpy as np
 from graph_db import GraphDB
 from time import gmtime, strftime
+import utils.db_meta as db_meta
 
 
 class Graph:
@@ -25,37 +26,44 @@ class Graph:
         self.db_cursor = None
         self.db_conn = None
 
-        self.db_table_time = 'timestamp_to_time_id'
-        self.db_table_time_headers_1 = 'time'
-        self.db_table_time_headers_2 = 'time_id'
-        self.db_table_time_headers = '(time, time_id)'
-        self.db_table_time_headers_complete = [['time', 'timestamp', 'not null'],
-                                               ['time_id', 'bigint', 'not null']]
-
         self.db_table_nodes_id = 'nodes_id'
         self.db_table_nodes_id_headers_1 = 'node_ip'
         self.db_table_nodes_id_headers_2 = 'vertex_id'
         self.db_table_nodes_id_headers_3 = 'port'
-        self.db_table_nodes_id_headers_complete = [['node_ip', 'inet', 'primary key'],
-                                                   ['vertex_id', 'bigint', 'not null'],
-                                                   ['port', 'int', None]]
+        self.db_table_nodes_id_headers_complete = [[self.db_table_nodes_id_headers_1, 'inet', 'primary key'],
+                                                   [self.db_table_nodes_id_headers_2, 'bigint', 'not null'],
+                                                   [self.db_table_nodes_id_headers_3, 'int', None]]
 
         self.db_hypertable_nodes_all = 'nodes_all'
-        self.db_hypertable_nodes_all_headers = ''
-        self.db_hypertable_nodes_all_headers_complete = [['time', 'timestamp', 'not null'],
-                                                         ['vertex_id', 'bigint', 'not null'],
-                                                         ['ip_address', 'inet', 'not null'],
-                                                         ['port', 'int', None],
-                                                         ['status', 'boolean', 'not null'],
-                                                         ['node_name', 'varchar(256)', 'not null'],
-                                                         ['node_nonce', 'int', 'not null'],
-                                                         ['number_peers', 'int', 'not null'],
-                                                         ['address', 'varchar(40)', None],
-                                                         ['height', 'bigint', None],
-                                                         ['version', 'varchar(16)', None],
-                                                         ['location', 'varchar(128)', None],
-                                                         ['time_get_basic_info', 'real', 'not null'],
-                                                         ['time_get_details', 'real', 'not null']]
+        self.db_hypertable_nodes_all_header_time = 'time'
+        self.db_hypertable_nodes_all_header_vertex_id = 'vertex_id'
+        self.db_hypertable_nodes_all_header_ip_address = 'ip_address'
+        self.db_hypertable_nodes_all_header_port = 'port'
+        self.db_hypertable_nodes_all_header_status = 'status'
+        self.db_hypertable_nodes_all_header_name = 'node_name'
+        self.db_hypertable_nodes_all_header_nonce = 'node_nonce'
+        self.db_hypertable_nodes_all_header_number_peers = 'number_peers'
+        self.db_hypertable_nodes_all_header_address = 'address'
+        self.db_hypertable_nodes_all_header_height = 'height'
+        self.db_hypertable_nodes_all_header_version = 'version'
+        self.db_hypertable_nodes_all_header_location = 'location'
+        self.db_hypertable_nodes_all_header_time_basic = 'time_get_basic_info'
+        self.db_hypertable_nodes_all_header_time_details = 'time_get_details'
+
+        self.db_hypertable_nodes_all_headers_complete = [[self.db_hypertable_nodes_all_header_time, 'timestamp', 'not null'],
+                                                         [self.db_hypertable_nodes_all_header_vertex_id, 'bigint', 'not null'],
+                                                         [self.db_hypertable_nodes_all_header_ip_address, 'inet', 'not null'],
+                                                         [self.db_hypertable_nodes_all_header_port, 'varchar(4)', None],
+                                                         [self.db_hypertable_nodes_all_header_status, 'varchar(5)', 'not null'],
+                                                         [self.db_hypertable_nodes_all_header_name, 'varchar(256)', 'not null'],
+                                                         [self.db_hypertable_nodes_all_header_nonce, 'int', 'not null'],
+                                                         [self.db_hypertable_nodes_all_header_number_peers, 'int', 'not null'],
+                                                         [self.db_hypertable_nodes_all_header_address, 'varchar(40)', None],
+                                                         [self.db_hypertable_nodes_all_header_height, 'varchar(256)', None],
+                                                         [self.db_hypertable_nodes_all_header_version, 'varchar(16)', None],
+                                                         [self.db_hypertable_nodes_all_header_location, 'varchar(128)', None],
+                                                         [self.db_hypertable_nodes_all_header_time_basic, 'real', 'not null'],
+                                                         [self.db_hypertable_nodes_all_header_time_details, 'real', 'not null']]
 
     def initialize_db(self, hostname, user_name, password, clear_old_db=False):
         db_name = self.graph_name
@@ -70,8 +78,8 @@ class Graph:
             if not self.graph_db.check_db():
                 self.graph_db.create_db()
 
-            if not self.graph_db.check_table(self.db_table_time):
-                self.graph_db.create_table(self.db_table_time, self.db_table_time_headers_complete)
+            if not self.graph_db.check_table(db_meta.table_time.name):
+                self.graph_db.create_table(db_meta.table_time.name, db_meta.table_time.get_headers_with_desc())
 
             if not self.graph_db.check_table(self.db_table_nodes_id):
                 self.graph_db.create_table(self.db_table_nodes_id, self.db_table_nodes_id_headers_complete)
@@ -90,21 +98,23 @@ class Graph:
         self.current_timestamp = strftime("%Y-%m-%d %H:%M", gmtime()) + ':00'
 
     def get_next_time_id_in_db(self):
-        get_number_of_timestamps_command = "SELECT COUNT(*) FROM " + self.db_table_time + ";"
+        get_number_of_timestamps_command = "SELECT COUNT(*) FROM " + db_meta.table_time.name + ";"
         number = self.graph_db.query_items_with_command(get_number_of_timestamps_command)
         return number[0][0]
 
     def add_timestamp_to_table_time(self, timestamp, time_id):
-        db_table_time_headers = "(" + self.db_table_time_headers_1 + ", " + self.db_table_time_headers_2 + ")"
-        item = "('" + timestamp + "', " + str(time_id) + ")"
-        self.graph_db.insert_item(db_table_time_headers, item, self.db_table_time)
+        headers = "(" + db_meta.table_time.get_all_headers() + ")"
+        db_meta.table_time.set_value_in_a_row(timestamp, column_id=0)
+        db_meta.table_time.set_value_in_a_row(time_id, column_id=1)
+        values = "(" + db_meta.table_time.get_all_values() + ")"
+        self.graph_db.insert_item(headers, values, db_meta.table_time.name)
 
     def traversal_graph_dfs(self, ip_address):
         if not self.graph_db:
             msg = "Traversal graph by dfs requires initialization of a graph database!"
             throw_error(msg, TraversalGraphException)
 
-        nodes_all = {}
+        self.graph = {}
         self.graph_db.start_db()
 
         try:
@@ -125,7 +135,7 @@ class Graph:
             root = Node(root_id, ip_address, default_ports, root_name, root_nonce)
             self.root_update = False
 
-            nodes_all.update({ip_address: root})
+            self.graph.update({ip_address: root})
             node_stack = Stack()
             node_stack.push(ip_address)
 
@@ -133,7 +143,7 @@ class Graph:
 
             while not node_stack.is_empty():
                 _vertex_ip = node_stack.pop()
-                _vertex = nodes_all[_vertex_ip]
+                _vertex = self.graph[_vertex_ip]
 
                 if not _vertex.visited:
                     _vertex.visited = True
@@ -158,18 +168,18 @@ class Graph:
 
                                     self.add_vertex_to_table_nodes_id(new_node_basic_info)
                                     next_vertex_id += 1
-                                    if _peer_ip not in nodes_all:
-                                        nodes_all.update({_peer_ip: new_node})
+                                    if _peer_ip not in self.graph:
+                                        self.graph.update({_peer_ip: new_node})
                                 else:
-                                    if _peer_ip not in nodes_all:
+                                    if _peer_ip not in self.graph:
                                         new_node = Node(_peer_id, _peer_ip, default_ports + [port], peer_name, peer_nonce)
-                                        nodes_all.update({_peer_ip: new_node})
+                                        self.graph.update({_peer_ip: new_node})
                             else:
-                                if _peer_ip not in nodes_all:
+                                if _peer_ip not in self.graph:
                                     new_node = Node(_peer_id, _peer_ip, default_ports + [port], peer_name, peer_nonce)
-                                    nodes_all.update({_peer_ip: new_node})
+                                    self.graph.update({_peer_ip: new_node})
 
-                            _peer = nodes_all[_peer_ip]
+                            _peer = self.graph[_peer_ip]
 
                             if _peer_ip != _vertex_ip:
                                 peers_id.append(_peer_id)
@@ -194,9 +204,7 @@ class Graph:
             self.graph_db.close_db()
 
         print("time of traversing the current graph: ", self.time_traversal_graph)
-        print("total number of vertex in the current graph: ", len(nodes_all))
-
-        return nodes_all
+        print("total number of vertex in the current graph: ", len(self.graph))
 
     def get_next_vertex_id(self):
         get_number_of_nodes_command = "SELECT COUNT(*) FROM " + self.db_table_nodes_id + ";"
@@ -269,67 +277,114 @@ class Graph:
                     continue
         return False
 
-    def get_graph_asymmetric_matrix(self, network):
-        matrix_row_dim = len(self.vertex_snapshot)
+    def get_graph_asymmetric_matrix(self):
+        matrix_row_dim = len(self.graph)
         matrix = np.zeros([matrix_row_dim, matrix_row_dim], dtype=np.int8)
-        for node in network:
-            matrix[node, network[node]] = 1
-        return matrix
+        nodes_sequence = []
 
-    def get_graph_symmetric_matrix(self, network):
-        matrix_row_dim = len(self.vertex_snapshot)
+        dim_count = 0
+        for node in self.graph:
+            nodes_sequence.append([node])
+
+            peers = self.graph[node].peers
+            matrix[dim_count, peers] = 1
+            dim_count += 1
+
+        return [nodes_sequence, matrix]
+
+    def get_graph_symmetric_matrix(self):
+        matrix_row_dim = len(self.graph)
         matrix = np.zeros([matrix_row_dim, matrix_row_dim], dtype=np.int8)
-        for node in network:
-            matrix[node, network[node]] = 1
-            for end_node in network[node]:
-                matrix[end_node, node] = 1
-        return matrix
+        nodes_sequence = []
 
-    def get_nodes_detail(self, adjacent_matrix):
-        info = ['ip_address', 'status', 'node_name', 'node_nonce', 'link', 'number_peers',
-                'address', 'height', 'version', 'location', 'time_init', 'time_get_details']
-        nodes_detail = {}
-        for node_id in self.graph:
+        dim_count = 0
+        for node in self.graph:
+            nodes_sequence.append(node)
+            peers = self.graph[node].peers
+            matrix[dim_count, peers] = 1
+            if peers:
+                for end_node in peers:
+                    matrix[end_node, dim_count] = 1
+            dim_count += 1
+        return [nodes_sequence, matrix]
 
-            node = self.graph[node_id]
-            key = node.ip_hex() + '-' + str(node.id)
+    def get_nodes_detail(self, node_matrix, timestamp):
+        node_sequence = node_matrix[0]
+        adjacent_matrix = node_matrix[1]
+
+        self.graph_db.start_db()
+        table_headers = [self.db_hypertable_nodes_all_header_time,
+                         self.db_hypertable_nodes_all_header_vertex_id,
+                         self.db_hypertable_nodes_all_header_ip_address,
+                         self.db_hypertable_nodes_all_header_port,
+                         self.db_hypertable_nodes_all_header_status,
+                         self.db_hypertable_nodes_all_header_name,
+                         self.db_hypertable_nodes_all_header_nonce,
+                         self.db_hypertable_nodes_all_header_number_peers,
+                         self.db_hypertable_nodes_all_header_address,
+                         self.db_hypertable_nodes_all_header_height,
+                         self.db_hypertable_nodes_all_header_version,
+                         self.db_hypertable_nodes_all_header_location,
+                         self.db_hypertable_nodes_all_header_time_basic,
+                         self.db_hypertable_nodes_all_header_time_details]
+
+        headers = '(' + ', '.join(table_headers) + ')'
+
+        for node_dim in range(len(node_sequence)):
+            ip_address = node_sequence[node_dim]
+            node = self.graph[ip_address]
 
             node_start_time = timeit.default_timer()
-            ip_address = node.ip_address
             node_name = node.node_name
             node_nonce = node.node_nonce
+            port = node.port
             link = node.link
 
             node_info = dict()
-            node_info.update({info[0]: ip_address})
-            node_info.update({info[1]: node.status})
-            node_info.update({info[2]: node_name})
-            node_info.update({info[3]: node_nonce})
-            node_info.update({info[4]: link})
-            node_info.update({info[5]: np.sum(adjacent_matrix[node_id, :])})
+            node_info.update({self.db_hypertable_nodes_all_header_time: timestamp})
+            node_info.update({self.db_hypertable_nodes_all_header_vertex_id: node.id})
+            node_info.update({self.db_hypertable_nodes_all_header_ip_address: ip_address})
+            node_info.update({self.db_hypertable_nodes_all_header_status: node.status})
+            node_info.update({self.db_hypertable_nodes_all_header_name: node_name})
+            node_info.update({self.db_hypertable_nodes_all_header_nonce: node_nonce})
+            node_info.update({self.db_hypertable_nodes_all_header_port: port})
+            node_info.update({self.db_hypertable_nodes_all_header_number_peers: np.sum(adjacent_matrix[node_dim, :])})
 
             if node.status:
-                node_info.update({info[6]: get_node_wallet_address(link)})
-                node_info.update({info[7]: get_node_height(link)})
-                node_info.update({info[8]: get_node_version(link)})
+                node_info.update({self.db_hypertable_nodes_all_header_address: get_node_wallet_address(link)})
+                node_info.update({self.db_hypertable_nodes_all_header_height: get_node_height(link)})
+                node_info.update({self.db_hypertable_nodes_all_header_version: get_node_version(link)})
             else:
-                node_info.update({info[6]: None})
-                node_info.update({info[7]: None})
-                node_info.update({info[8]: None})
+                node_info.update({self.db_hypertable_nodes_all_header_address: None})
+                node_info.update({self.db_hypertable_nodes_all_header_height: None})
+                node_info.update({self.db_hypertable_nodes_all_header_version: None})
 
-            node_info.update({info[9]: get_location_ip(ip_address)})
+            node_info.update({self.db_hypertable_nodes_all_header_location: get_location_ip(ip_address)})
 
             node_stop_time = timeit.default_timer()
-            node_info.update({info[10]: node.time_init})
+            node_info.update({self.db_hypertable_nodes_all_header_time_basic: node.time_get_basic_info})
 
             node.time_get_details = node_stop_time - node_start_time
-            node_info.update({info[11]: node.time_get_details})
+            node_info.update({self.db_hypertable_nodes_all_header_time_details: node.time_get_details})
 
-            nodes_detail.update({key: node_info})
-            print("node %s:  %s" % (key, nodes_detail[key]))
+            header_without_quote = ['int', 'bigint', 'real']
+            values_list = []
+            for head in self.db_hypertable_nodes_all_headers_complete:
+                if head[1] in header_without_quote:
+                    if node_info[head[0]]:
+                        values_list.append(str(node_info[head[0]]))
+                    else:
+                        values_list.append("'" + str(node_info[head[0]]) + "'")
+                else:
+                    values_list.append("'" + str(node_info[head[0]]) + "'")
 
-        return [info, nodes_detail]
+            values = '(' + ", ".join(values_list) + ')'
 
+            print(headers)
+            print(values)
+            self.graph_db.insert_item(headers, values, self.db_hypertable_nodes_all)
+
+        self.graph_db.close_db()
 
     def output_graph_by_number_peers(self, all_nodes_info):
 
