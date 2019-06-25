@@ -294,6 +294,12 @@ class Graph:
 
             peers_index = np.nonzero(adjacent_symmetric_matrix[node_dim, :])
             peers = ' '.join([str(vertex_id) for vertex_id in peers_index[0]])
+
+            if np.sum(adjacent_symmetric_matrix[node_dim, :]) == 1:
+                print("peers_index: ", peers_index)
+                print("peers_index[0]: ", peers_index[0])
+                print("peers: ", peers)
+
             node_info.update({db_meta.hypertable_nodes_all_header_peers['name']: peers})
 
             if node.status:

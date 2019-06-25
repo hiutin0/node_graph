@@ -59,7 +59,7 @@ class NodeAnalysis:
         else:
             time.sleep(self.wait_time)
 
-    def successive_node_analysis(self, rounds=2, time_gap=600, non_stop=False):
+    def successive_node_analysis(self, rounds=1, time_gap=600, non_stop=False):
         self.new_graph.initialize_db(hostname, user_name, password, clear_old_db=clear_old_database)
         try:
             while rounds:
