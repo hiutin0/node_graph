@@ -238,28 +238,3 @@ class GraphDB:
             delete_item_command = "DELETE FROM " + table_name + " WHERE " + \
                                   query_content[0] + " = " + query_content[1]
             self.db_cursor.execute(delete_item_command)
-
-
-if __name__ == "__main__":
-    vsys_db_name = 'vsys_nodes_db'
-    vsys_table_name = 'node_details_hypertable'
-
-    headers = "(vendor_id, vendor_name)"
-    values = "(2, 'abc')"
-    vsys_db = GraphDB('localhost', 'DBNAME', 'aaronyu', 'PASSWORD')
-    vsys_db.start_db()
-
-    vsys_db.drop_db(vsys_db_name)
-
-    if not vsys_db.check_db(vsys_db_name):
-        vsys_db.create_db(vsys_db_name)
-    #
-    # # vsys_db.drop_table(vsys_table_name, vsys_db_name)
-    #
-    # vsys_db.create_table(vsys_table_name, [['vendor_id', 'SERIAL', 'PRIMARY KEY'], ['vendor_name', 'VARCHAR(255)', 'NOT NULL']], vsys_db_name)
-
-    vsys_db.add_extension_timescale(vsys_db_name)
-    vsys_db.create_hypertable(vsys_table_name, [['time', 'timestamp', 'not null'], ['name', 'varchar(10)', 'null']], vsys_db_name)
-    # vsys_db.insert_item(headers, values, vsys_table_name, vsys_db_name)
-    # vsys_db.drop_table('vendors', vsys_db_name)
-    vsys_db.close_db()
