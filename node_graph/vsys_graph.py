@@ -26,37 +26,6 @@ class Graph:
         self.db_cursor = None
         self.db_conn = None
 
-        self.db_hypertable_nodes_all = 'nodes_all'
-        self.db_hypertable_nodes_all_header_time = 'time'
-        self.db_hypertable_nodes_all_header_vertex_id = 'vertex_id'
-        self.db_hypertable_nodes_all_header_ip_address = 'ip_address'
-        self.db_hypertable_nodes_all_header_port = 'port'
-        self.db_hypertable_nodes_all_header_status = 'status'
-        self.db_hypertable_nodes_all_header_name = 'node_name'
-        self.db_hypertable_nodes_all_header_nonce = 'node_nonce'
-        self.db_hypertable_nodes_all_header_number_peers = 'number_peers'
-        self.db_hypertable_nodes_all_header_address = 'address'
-        self.db_hypertable_nodes_all_header_height = 'height'
-        self.db_hypertable_nodes_all_header_version = 'version'
-        self.db_hypertable_nodes_all_header_location = 'location'
-        self.db_hypertable_nodes_all_header_time_basic = 'time_get_basic_info'
-        self.db_hypertable_nodes_all_header_time_details = 'time_get_details'
-
-        self.db_hypertable_nodes_all_headers_complete = [[self.db_hypertable_nodes_all_header_time, 'timestamp', 'not null'],
-                                                         [self.db_hypertable_nodes_all_header_vertex_id, 'bigint', 'not null'],
-                                                         [self.db_hypertable_nodes_all_header_ip_address, 'inet', 'not null'],
-                                                         [self.db_hypertable_nodes_all_header_port, 'varchar(4)', None],
-                                                         [self.db_hypertable_nodes_all_header_status, 'varchar(5)', 'not null'],
-                                                         [self.db_hypertable_nodes_all_header_name, 'varchar(256)', 'not null'],
-                                                         [self.db_hypertable_nodes_all_header_nonce, 'int', 'not null'],
-                                                         [self.db_hypertable_nodes_all_header_number_peers, 'int', 'not null'],
-                                                         [self.db_hypertable_nodes_all_header_address, 'varchar(40)', None],
-                                                         [self.db_hypertable_nodes_all_header_height, 'varchar(256)', None],
-                                                         [self.db_hypertable_nodes_all_header_version, 'varchar(16)', None],
-                                                         [self.db_hypertable_nodes_all_header_location, 'varchar(128)', None],
-                                                         [self.db_hypertable_nodes_all_header_time_basic, 'real', 'not null'],
-                                                         [self.db_hypertable_nodes_all_header_time_details, 'real', 'not null']]
-
     def initialize_db(self, hostname, user_name, password, clear_old_db=False):
         db_name = self.graph_name
 
@@ -77,9 +46,9 @@ class Graph:
                 self.graph_db.create_table(db_meta.table_nodes_id.name, db_meta.table_nodes_id.get_headers_with_desc())
 
             self.graph_db.add_extension_timescale()
-            if not self.graph_db.check_table(self.db_hypertable_nodes_all):
-                self.graph_db.create_hypertable(self.db_hypertable_nodes_all,
-                                                self.db_hypertable_nodes_all_headers_complete)
+            if not self.graph_db.check_table(db_meta.hypertable_nodes_all.name):
+                self.graph_db.create_hypertable(db_meta.hypertable_nodes_all.name,
+                                                db_meta.hypertable_nodes_all.get_headers_with_desc())
         except InvalidInputException:
             msg = "Some errors in initialization of database!"
             throw_error(msg, InvalidInputException)
@@ -302,22 +271,8 @@ class Graph:
         adjacent_matrix = node_matrix[1]
 
         self.graph_db.start_db()
-        table_headers = [self.db_hypertable_nodes_all_header_time,
-                         self.db_hypertable_nodes_all_header_vertex_id,
-                         self.db_hypertable_nodes_all_header_ip_address,
-                         self.db_hypertable_nodes_all_header_port,
-                         self.db_hypertable_nodes_all_header_status,
-                         self.db_hypertable_nodes_all_header_name,
-                         self.db_hypertable_nodes_all_header_nonce,
-                         self.db_hypertable_nodes_all_header_number_peers,
-                         self.db_hypertable_nodes_all_header_address,
-                         self.db_hypertable_nodes_all_header_height,
-                         self.db_hypertable_nodes_all_header_version,
-                         self.db_hypertable_nodes_all_header_location,
-                         self.db_hypertable_nodes_all_header_time_basic,
-                         self.db_hypertable_nodes_all_header_time_details]
-
-        headers = '(' + ', '.join(table_headers) + ')'
+        headers = '(' + db_meta.hypertable_nodes_all.get_all_headers() + ')'
+        headers_list = db_meta.hypertable_nodes_all.get_all_headers().split(', ')
 
         for node_dim in range(len(node_sequence)):
             ip_address = node_sequence[node_dim]
@@ -330,48 +285,36 @@ class Graph:
             link = node.link
 
             node_info = dict()
-            node_info.update({self.db_hypertable_nodes_all_header_time: timestamp})
-            node_info.update({self.db_hypertable_nodes_all_header_vertex_id: node.id})
-            node_info.update({self.db_hypertable_nodes_all_header_ip_address: ip_address})
-            node_info.update({self.db_hypertable_nodes_all_header_status: node.status})
-            node_info.update({self.db_hypertable_nodes_all_header_name: node_name})
-            node_info.update({self.db_hypertable_nodes_all_header_nonce: node_nonce})
-            node_info.update({self.db_hypertable_nodes_all_header_port: port})
-            node_info.update({self.db_hypertable_nodes_all_header_number_peers: np.sum(adjacent_matrix[node_dim, :])})
+            node_info.update({db_meta.hypertable_nodes_all_header_time['name']: timestamp})
+            node_info.update({db_meta.hypertable_nodes_all_header_vertex_id['name']: node.id})
+            node_info.update({db_meta.hypertable_nodes_all_header_ip_address['name']: ip_address})
+            node_info.update({db_meta.hypertable_nodes_all_header_status['name']: node.status})
+            node_info.update({db_meta.hypertable_nodes_all_header_node_name['name']: node_name})
+            node_info.update({db_meta.hypertable_nodes_all_header_node_nonce['name']: node_nonce})
+            node_info.update({db_meta.hypertable_nodes_all_header_port['name']: port})
+            node_info.update({db_meta.hypertable_nodes_all_header_number_peers['name']: np.sum(adjacent_matrix[node_dim, :])})
 
             if node.status:
-                node_info.update({self.db_hypertable_nodes_all_header_address: get_node_wallet_address(link)})
-                node_info.update({self.db_hypertable_nodes_all_header_height: get_node_height(link)})
-                node_info.update({self.db_hypertable_nodes_all_header_version: get_node_version(link)})
+                node_info.update({db_meta.hypertable_nodes_all_header_wallet_address['name']: get_node_wallet_address(link)})
+                node_info.update({db_meta.hypertable_nodes_all_header_height['name']: get_node_height(link)})
+                node_info.update({db_meta.hypertable_nodes_all_header_version['name']: get_node_version(link)})
             else:
-                node_info.update({self.db_hypertable_nodes_all_header_address: None})
-                node_info.update({self.db_hypertable_nodes_all_header_height: None})
-                node_info.update({self.db_hypertable_nodes_all_header_version: None})
+                node_info.update({db_meta.hypertable_nodes_all_header_wallet_address['name']: None})
+                node_info.update({db_meta.hypertable_nodes_all_header_height['name']: None})
+                node_info.update({db_meta.hypertable_nodes_all_header_version['name']: None})
 
-            node_info.update({self.db_hypertable_nodes_all_header_location: get_location_ip(ip_address)})
+            node_info.update({db_meta.hypertable_nodes_all_header_location['name']: get_location_ip(ip_address)})
 
             node_stop_time = timeit.default_timer()
-            node_info.update({self.db_hypertable_nodes_all_header_time_basic: node.time_get_basic_info})
+            node_info.update({db_meta.hypertable_nodes_all_header_time_basic['name']: node.time_get_basic_info})
 
             node.time_get_details = node_stop_time - node_start_time
-            node_info.update({self.db_hypertable_nodes_all_header_time_details: node.time_get_details})
+            node_info.update({db_meta.hypertable_nodes_all_header_time_details['name']: node.time_get_details})
 
-            header_without_quote = ['int', 'bigint', 'real']
-            values_list = []
-            for head in self.db_hypertable_nodes_all_headers_complete:
-                if head[1] in header_without_quote:
-                    if node_info[head[0]]:
-                        values_list.append(str(node_info[head[0]]))
-                    else:
-                        values_list.append("'" + str(node_info[head[0]]) + "'")
-                else:
-                    values_list.append("'" + str(node_info[head[0]]) + "'")
-
-            values = '(' + ", ".join(values_list) + ')'
-
-            print(headers)
-            print(values)
-            self.graph_db.insert_item(headers, values, self.db_hypertable_nodes_all)
+            for header in headers_list:
+                db_meta.hypertable_nodes_all.set_value_in_a_row(node_info[header], column_name=header)
+            values = "(" + db_meta.hypertable_nodes_all.get_all_values() + ")"
+            self.graph_db.insert_item(headers, values, db_meta.hypertable_nodes_all.name)
 
         self.graph_db.close_db()
 
@@ -385,5 +328,3 @@ class Graph:
         inactive_nodes_sort = sort_nodes_by_number_peers(inactive_nodes)
 
         output_items_to_csv_file(headers, active_nodes_sort + inactive_nodes_sort)
-
-

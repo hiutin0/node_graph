@@ -49,7 +49,7 @@ class NodeAnalysis:
         else:
             time.sleep(self.wait_time)
 
-    def successive_node_analysis(self, rounds=1, time_gap=12, non_stop=False):
+    def successive_node_analysis(self, rounds=1, time_gap=600, non_stop=False):
         self.new_graph.initialize_db(hostname, user_name, password, clear_old_db=True)
 
         vsys_node_analysis.new_graph.graph_db.start_db()
@@ -63,8 +63,8 @@ class NodeAnalysis:
 
                 vsys_node_analysis.new_graph.add_timestamp_to_table_time(current_timestamp, next_time_id)
                 vsys_node_analysis.new_graph.traversal_graph_dfs(self.ip)
-                # nodes_and_matrix = vsys_node_analysis.new_graph.get_graph_symmetric_matrix()
-                # vsys_node_analysis.new_graph.get_nodes_detail(nodes_and_matrix, current_timestamp)
+                nodes_and_matrix = vsys_node_analysis.new_graph.get_graph_symmetric_matrix()
+                vsys_node_analysis.new_graph.get_nodes_detail(nodes_and_matrix, current_timestamp)
 
                 current_round_stop_time = timeit.default_timer()
 
@@ -87,19 +87,19 @@ class NodeAnalysis:
         print("all nodes: ", graph_network)
         return graph_network
 
-    def get_graph_asymmetric_matrix(self, graph_network=None):
-        if not graph_network:
-            graph_network = self.construct_graph()
-            return self.new_graph.get_graph_asymmetric_matrix(graph_network)
-        else:
-            return self.new_graph.get_graph_asymmetric_matrix(graph_network)
-
-    def get_graph_symmetric_matrix(self, graph_network=None):
-        if not graph_network:
-            graph_network = self.construct_graph()
-            return self.new_graph.get_graph_symmetric_matrix(graph_network)
-        else:
-            return self.new_graph.get_graph_symmetric_matrix(graph_network)
+    # def get_graph_asymmetric_matrix(self, graph_network=None):
+    #     if not graph_network:
+    #         graph_network = self.construct_graph()
+    #         return self.new_graph.get_graph_asymmetric_matrix(graph_network)
+    #     else:
+    #         return self.new_graph.get_graph_asymmetric_matrix(graph_network)
+    #
+    # def get_graph_symmetric_matrix(self, graph_network=None):
+    #     if not graph_network:
+    #         graph_network = self.construct_graph()
+    #         return self.new_graph.get_graph_symmetric_matrix(graph_network)
+    #     else:
+    #         return self.new_graph.get_graph_symmetric_matrix(graph_network)
 
     def plot_snapshot_matrix(self, matrix=None):
         if not matrix:

@@ -91,3 +91,32 @@ table_nodes_id.add_table_header(table_nodes_id_header_node_ip)
 table_nodes_id.add_table_header(table_nodes_id_header_vertex_id)
 table_nodes_id.add_table_header(table_nodes_id_header_port)
 
+hypertable_nodes_all = Table('nodes_all')
+hypertable_nodes_all_header_time = {header_name: 'time', header_data_type: 'timestamp', header_attribute: 'not null'}
+hypertable_nodes_all.add_table_header(hypertable_nodes_all_header_time)
+hypertable_nodes_all_header_vertex_id = {header_name: 'vertex_id', header_data_type: 'bigint', header_attribute: 'not null'}
+hypertable_nodes_all.add_table_header(hypertable_nodes_all_header_vertex_id)
+hypertable_nodes_all_header_ip_address = {header_name: 'ip_address', header_data_type: 'inet', header_attribute: 'not null'}
+hypertable_nodes_all.add_table_header(hypertable_nodes_all_header_ip_address)
+hypertable_nodes_all_header_port = {header_name: 'port', header_data_type: 'varchar(5)', header_attribute: None}
+hypertable_nodes_all.add_table_header(hypertable_nodes_all_header_port)
+hypertable_nodes_all_header_status = {header_name: 'status', header_data_type: 'varchar(5)', header_attribute: 'not null'}
+hypertable_nodes_all.add_table_header(hypertable_nodes_all_header_status)
+hypertable_nodes_all_header_node_name = {header_name: 'node_name', header_data_type: 'varchar(256)', header_attribute: 'not null'}
+hypertable_nodes_all.add_table_header(hypertable_nodes_all_header_node_name)
+hypertable_nodes_all_header_node_nonce = {header_name: 'node_nonce', header_data_type: 'int', header_attribute: 'not null'}
+hypertable_nodes_all.add_table_header(hypertable_nodes_all_header_node_nonce)
+hypertable_nodes_all_header_number_peers = {header_name: 'number_peers', header_data_type: 'int', header_attribute: 'not null'}
+hypertable_nodes_all.add_table_header(hypertable_nodes_all_header_number_peers)
+hypertable_nodes_all_header_wallet_address = {header_name: 'wallet_address', header_data_type: 'varchar(40)', header_attribute: None}
+hypertable_nodes_all.add_table_header(hypertable_nodes_all_header_wallet_address)
+hypertable_nodes_all_header_height = {header_name: 'height', header_data_type: 'varchar(256)', header_attribute: None}
+hypertable_nodes_all.add_table_header(hypertable_nodes_all_header_height)
+hypertable_nodes_all_header_version = {header_name: 'version', header_data_type: 'varchar(16)', header_attribute: None}
+hypertable_nodes_all.add_table_header(hypertable_nodes_all_header_version)
+hypertable_nodes_all_header_location = {header_name: 'location', header_data_type: 'varchar(128)', header_attribute: None}
+hypertable_nodes_all.add_table_header(hypertable_nodes_all_header_location)
+hypertable_nodes_all_header_time_basic = {header_name: 'time_basic', header_data_type: 'real', header_attribute: 'not null'}
+hypertable_nodes_all.add_table_header(hypertable_nodes_all_header_time_basic)
+hypertable_nodes_all_header_time_details = {header_name: 'time_details', header_data_type: 'real', header_attribute: 'not null'}
+hypertable_nodes_all.add_table_header(hypertable_nodes_all_header_time_details)
