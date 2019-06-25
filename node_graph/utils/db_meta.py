@@ -106,7 +106,7 @@ hypertable_nodes_all_header_node_name = {header_name: 'node_name', header_data_t
 hypertable_nodes_all.add_table_header(hypertable_nodes_all_header_node_name)
 hypertable_nodes_all_header_node_nonce = {header_name: 'node_nonce', header_data_type: 'int', header_attribute: 'not null'}
 hypertable_nodes_all.add_table_header(hypertable_nodes_all_header_node_nonce)
-hypertable_nodes_all_header_number_peers = {header_name: 'number_peers', header_data_type: 'int', header_attribute: 'not null'}
+hypertable_nodes_all_header_number_peers = {header_name: 'number_peers', header_data_type: 'varchar', header_attribute: 'not null'}
 hypertable_nodes_all.add_table_header(hypertable_nodes_all_header_number_peers)
 hypertable_nodes_all_header_wallet_address = {header_name: 'wallet_address', header_data_type: 'varchar(40)', header_attribute: None}
 hypertable_nodes_all.add_table_header(hypertable_nodes_all_header_wallet_address)

@@ -292,7 +292,10 @@ class Graph:
             node_info.update({db_meta.hypertable_nodes_all_header_node_name['name']: node_name})
             node_info.update({db_meta.hypertable_nodes_all_header_node_nonce['name']: node_nonce})
             node_info.update({db_meta.hypertable_nodes_all_header_port['name']: port})
-            node_info.update({db_meta.hypertable_nodes_all_header_number_peers['name']: np.sum(adjacent_matrix[node_dim, :])})
+
+            peers = str(np.sum(adjacent_matrix[node_dim, :])) + \
+                '-' + ' '.join([str(vertex_id) for vertex_id in adjacent_matrix[node_dim, :]])
+            node_info.update({db_meta.hypertable_nodes_all_header_number_peers['name']: peers})
 
             if node.status:
                 node_info.update({db_meta.hypertable_nodes_all_header_wallet_address['name']: get_node_wallet_address(link)})
@@ -333,7 +336,6 @@ class Graph:
             return None
 
     def output_graph_by_number_peers(self, all_nodes_info):
-
         headers = ['vertex_id'] + all_nodes_info[0]
         nodes_info = all_nodes_info[1]
 
