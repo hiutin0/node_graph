@@ -37,8 +37,11 @@ hostname = 'localhost'
 user_name = 'aaronyu'
 password = 'pwd'
 
-# # path to store results
-# path_storing_results = '/Users/aaronyu/Dropbox/vsystems/node_graph/node_graph'
+# clear old results
+clear_old_results = True
+
+# clear old database
+clear_old_database = True
 
 
 class NodeAnalysis:
@@ -47,6 +50,7 @@ class NodeAnalysis:
         self.ports = ports
         self.new_graph = Graph(name, application_name)
         self.wait_time = 0
+        node_analysis_setting.check_directory_storing_results(clear_old_results)
 
     def wait_time_after_analysis_finished(self):
         if self.wait_time < 0:
@@ -56,7 +60,7 @@ class NodeAnalysis:
             time.sleep(self.wait_time)
 
     def successive_node_analysis(self, rounds=2, time_gap=600, non_stop=False):
-        self.new_graph.initialize_db(hostname, user_name, password, clear_old_db=True)
+        self.new_graph.initialize_db(hostname, user_name, password, clear_old_db=clear_old_database)
         try:
             while rounds:
                 vsys_node_analysis.new_graph.graph_db.start_db()

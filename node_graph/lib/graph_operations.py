@@ -39,7 +39,6 @@ def output_items_to_csv_file(headers, items, timestamp):
     field_names = headers
     file_name = timestamp + '_nodes_details.csv'
     target = node_analysis_setting.path_storing_results + "/" + file_name
-    node_analysis_setting.check_directory_storing_results()
 
     with open(target, 'w') as csv_file:
         writer = csv.DictWriter(csv_file, fieldnames=field_names)

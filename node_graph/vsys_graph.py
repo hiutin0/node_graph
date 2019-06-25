@@ -293,8 +293,9 @@ class Graph:
             node_info.update({db_meta.hypertable_nodes_all_header_node_nonce['name']: node_nonce})
             node_info.update({db_meta.hypertable_nodes_all_header_port['name']: port})
 
+            peers_index = np.nonzero(adjacent_matrix[node_dim, :])
             peers = str(np.sum(adjacent_matrix[node_dim, :])) + \
-                '-' + ' '.join([str(vertex_id) for vertex_id in adjacent_matrix[node_dim, :]])
+                '-' + ' '.join([str(vertex_id) for vertex_id in peers_index[0]])
             node_info.update({db_meta.hypertable_nodes_all_header_number_peers['name']: peers})
 
             if node.status:
