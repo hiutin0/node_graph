@@ -318,6 +318,20 @@ class Graph:
 
         self.graph_db.close_db()
 
+    def get_matrix_with_timestamp(self, timestamp):
+        get_items_with_timestamp_command = "SELECT * FROM " + db_meta.hypertable_nodes_all.name + " WHERE " + \
+                               db_meta.hypertable_nodes_all_header_time['name'] + "='" + timestamp + "';"
+        item_info = self.graph_db.query_items_with_command(get_items_with_timestamp_command)
+        return item_info
+
+    def get_the_last_timestamp(self):
+        get_all_timestamp_command = "SELECT * FROM " + db_meta.table_time.name + ";"
+        item_info = self.graph_db.query_items_with_command(get_all_timestamp_command)
+        if item_info:
+            return str(item_info[-1][0])
+        else:
+            return None
+
     def output_graph_by_number_peers(self, all_nodes_info):
 
         headers = ['vertex_id'] + all_nodes_info[0]

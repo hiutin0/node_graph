@@ -1,9 +1,12 @@
 from utils.ip_operation import *
 import logging
+from lib.graph_operations import *
 from utils.errors import *
 from vsys_graph import Graph
+import utils.db_meta as db_meta
 import timeit
 import time
+import utils.setting as node_analysis_setting
 
 import numpy as np
 from node import Node
@@ -34,6 +37,9 @@ hostname = 'localhost'
 user_name = 'aaronyu'
 password = 'pwd'
 
+# # path to store results
+# path_storing_results = '/Users/aaronyu/Dropbox/vsystems/node_graph/node_graph'
+
 
 class NodeAnalysis:
     def __init__(self, name, application_name, ip, ports):
@@ -49,28 +55,31 @@ class NodeAnalysis:
         else:
             time.sleep(self.wait_time)
 
-    def successive_node_analysis(self, rounds=1, time_gap=600, non_stop=False):
+    def successive_node_analysis(self, rounds=2, time_gap=600, non_stop=False):
         self.new_graph.initialize_db(hostname, user_name, password)
-
-        vsys_node_analysis.new_graph.graph_db.start_db()
         try:
             while rounds:
-                current_round_start_time = timeit.default_timer()
+                vsys_node_analysis.new_graph.graph_db.start_db()
+                # print(node_analysis_setting.path)
+                self.output_node_details_to_csv_file()
 
-                vsys_node_analysis.new_graph.get_current_timestamp()
-                current_timestamp = vsys_node_analysis.new_graph.current_timestamp
-                next_time_id = vsys_node_analysis.new_graph.get_next_time_id_in_db()
+                # current_round_start_time = timeit.default_timer()
+                #
+                # vsys_node_analysis.new_graph.get_current_timestamp()
+                # current_timestamp = vsys_node_analysis.new_graph.current_timestamp
+                # next_time_id = vsys_node_analysis.new_graph.get_next_time_id_in_db()
+                #
+                # vsys_node_analysis.new_graph.add_timestamp_to_table_time(current_timestamp, next_time_id)
+                # vsys_node_analysis.new_graph.traversal_graph_dfs(self.ip)
+                # nodes_and_matrix = vsys_node_analysis.new_graph.get_graph_symmetric_matrix()
+                # vsys_node_analysis.new_graph.get_nodes_detail(nodes_and_matrix, current_timestamp)
+                #
+                # current_round_stop_time = timeit.default_timer()
+                #
+                # self.wait_time = time_gap - int(current_round_stop_time - current_round_start_time)
+                #
+                # self.wait_time_after_analysis_finished()
 
-                vsys_node_analysis.new_graph.add_timestamp_to_table_time(current_timestamp, next_time_id)
-                vsys_node_analysis.new_graph.traversal_graph_dfs(self.ip)
-                nodes_and_matrix = vsys_node_analysis.new_graph.get_graph_symmetric_matrix()
-                vsys_node_analysis.new_graph.get_nodes_detail(nodes_and_matrix, current_timestamp)
-
-                current_round_stop_time = timeit.default_timer()
-
-                self.wait_time = time_gap - int(current_round_stop_time - current_round_start_time)
-
-                self.wait_time_after_analysis_finished()
                 rounds -= 1
                 if non_stop:
                     rounds += 1
@@ -80,33 +89,60 @@ class NodeAnalysis:
         finally:
             vsys_node_analysis.new_graph.graph_db.close_db()
 
-    def construct_graph(self):
-        self.new_graph.traversal_graph_dfs(self.ip)
-        graph_network = self.new_graph.construct_graph_network()
+    def plot_node_matrix_save(self, matrix=None, timestamp=None):
+        if matrix:
+            plt.figure()
+            plt.matshow(matrix)
+            plt.savefig('1.png', bbox_inches='tight')
+        elif timestamp:
+            vsys_node_analysis.new_graph.graph_db.start_db()
 
-        print("all nodes: ", graph_network)
-        return graph_network
+            matrix = vsys_node_analysis.new_graph
+            plt.figure()
+            plt.matshow(matrix)
+            plt.savefig('1.png', bbox_inches='tight')
+            vsys_node_analysis.new_graph.graph_db.close_db()
+        else:
+            vsys_node_analysis.new_graph.graph_db.start_db()
+            timestamp = self.new_graph.get_the_last_timestamp()
+            if timestamp:
+                self.new_graph.get_matrix_with_timestamp(timestamp)
 
-    # def get_graph_asymmetric_matrix(self, graph_network=None):
-    #     if not graph_network:
-    #         graph_network = self.construct_graph()
-    #         return self.new_graph.get_graph_asymmetric_matrix(graph_network)
-    #     else:
-    #         return self.new_graph.get_graph_asymmetric_matrix(graph_network)
-    #
-    # def get_graph_symmetric_matrix(self, graph_network=None):
-    #     if not graph_network:
-    #         graph_network = self.construct_graph()
-    #         return self.new_graph.get_graph_symmetric_matrix(graph_network)
-    #     else:
-    #         return self.new_graph.get_graph_symmetric_matrix(graph_network)
+            vsys_node_analysis.new_graph.graph_db.close_db()
 
-    def plot_snapshot_matrix(self, matrix=None):
-        if not matrix:
-            matrix = self.get_graph_symmetric_matrix()
-        plt.figure()
-        plt.matshow(matrix)
-        plt.savefig('1.png', bbox_inches='tight')
+    def output_node_details_to_csv_file(self, timestamp=None):
+        vsys_node_analysis.new_graph.graph_db.start_db()
+
+        if not timestamp:
+            timestamp = self.new_graph.get_the_last_timestamp()
+
+        if timestamp:
+            all_nodes_info = self.new_graph.get_matrix_with_timestamp(timestamp)
+        else:
+            all_nodes_info = None
+
+        if all_nodes_info:
+            headers_and_nodes_info = formalize_item_detailed_info(all_nodes_info)
+            headers = headers_and_nodes_info[0]
+            nodes_info = headers_and_nodes_info[1]
+            [active_nodes, inactive_nodes] = get_nodes_with_status(nodes_info)
+            # print(active_nodes)
+            # print("inactive: ", inactive_nodes)
+            active_nodes_sort = sort_nodes_by_number_peers(active_nodes)
+            inactive_nodes_sort = sort_nodes_by_number_peers(inactive_nodes)
+            # print(active_nodes_sort)
+            output_items_to_csv_file(headers[1:], active_nodes_sort + inactive_nodes_sort, timestamp)
+        else:
+            pass
+
+
+        # active_nodes_sort = sort_nodes_by_number_peers(active_nodes)
+        # inactive_nodes_sort = sort_nodes_by_number_peers(inactive_nodes)
+        #
+        # output_items_to_csv_file(headers, active_nodes_sort + inactive_nodes_sort)
+
+        vsys_node_analysis.new_graph.graph_db.close_db()
+
 
     def plot_snapshot_graph(self):
         if not self.new_graph.vertex_snapshot:
