@@ -26,14 +26,6 @@ class Graph:
         self.db_cursor = None
         self.db_conn = None
 
-        self.db_table_nodes_id = 'nodes_id'
-        self.db_table_nodes_id_headers_1 = 'node_ip'
-        self.db_table_nodes_id_headers_2 = 'vertex_id'
-        self.db_table_nodes_id_headers_3 = 'port'
-        self.db_table_nodes_id_headers_complete = [[self.db_table_nodes_id_headers_1, 'inet', 'primary key'],
-                                                   [self.db_table_nodes_id_headers_2, 'bigint', 'not null'],
-                                                   [self.db_table_nodes_id_headers_3, 'int', None]]
-
         self.db_hypertable_nodes_all = 'nodes_all'
         self.db_hypertable_nodes_all_header_time = 'time'
         self.db_hypertable_nodes_all_header_vertex_id = 'vertex_id'
@@ -81,8 +73,8 @@ class Graph:
             if not self.graph_db.check_table(db_meta.table_time.name):
                 self.graph_db.create_table(db_meta.table_time.name, db_meta.table_time.get_headers_with_desc())
 
-            if not self.graph_db.check_table(self.db_table_nodes_id):
-                self.graph_db.create_table(self.db_table_nodes_id, self.db_table_nodes_id_headers_complete)
+            if not self.graph_db.check_table(db_meta.table_nodes_id.name):
+                self.graph_db.create_table(db_meta.table_nodes_id.name, db_meta.table_nodes_id.get_headers_with_desc())
 
             self.graph_db.add_extension_timescale()
             if not self.graph_db.check_table(self.db_hypertable_nodes_all):
@@ -207,13 +199,13 @@ class Graph:
         print("total number of vertex in the current graph: ", len(self.graph))
 
     def get_next_vertex_id(self):
-        get_number_of_nodes_command = "SELECT COUNT(*) FROM " + self.db_table_nodes_id + ";"
+        get_number_of_nodes_command = "SELECT COUNT(*) FROM " + db_meta.table_nodes_id.name + ";"
         number = self.graph_db.query_items_with_command(get_number_of_nodes_command)
         return number[0][0]
 
     def get_vertex_id_with_ip(self, ip_address):
-        check_vertex_command = "SELECT * FROM " + self.db_table_nodes_id + " WHERE " + \
-                               self.db_table_nodes_id_headers_1 + "='" + ip_address + "';"
+        check_vertex_command = "SELECT * FROM " + db_meta.table_nodes_id.name + " WHERE " + \
+                               db_meta.table_nodes_id_header_node_ip['name'] + "='" + ip_address + "';"
         vertex_info = self.graph_db.query_items_with_command(check_vertex_command)
         if vertex_info:
             return vertex_info[0][1]
@@ -224,16 +216,13 @@ class Graph:
         ip_address = node_basic_info[0]
         vertex_id = node_basic_info[1]
         port = node_basic_info[2]
-        if port:
-            item = "('" + ip_address + "', " + str(vertex_id) + ", " + str(port) + ");"
-            db_table_nodes_id_headers = '(' + self.db_table_nodes_id_headers_1 + ',' + \
-                                        self.db_table_nodes_id_headers_2 + ',' + \
-                                        self.db_table_nodes_id_headers_3 + ')'
-        else:
-            item = "('" + ip_address + "', " + str(vertex_id) + ");"
-            db_table_nodes_id_headers = '(' + self.db_table_nodes_id_headers_1 + ',' + \
-                                        self.db_table_nodes_id_headers_2 + ')'
-        self.graph_db.insert_item(db_table_nodes_id_headers, item, self.db_table_nodes_id)
+
+        headers = "(" + db_meta.table_nodes_id.get_all_headers() + ")"
+        db_meta.table_nodes_id.set_value_in_a_row(ip_address, column_id=0)
+        db_meta.table_nodes_id.set_value_in_a_row(vertex_id, column_id=1)
+        db_meta.table_nodes_id.set_value_in_a_row(port, column_id=2)
+        values = "(" + db_meta.table_nodes_id.get_all_values() + ")"
+        self.graph_db.insert_item(headers, values, db_meta.table_nodes_id.name)
 
     def update_root_name_nonce(self, root_node, vertex_id, peer_name, peer_nonce):
         if not self.root_update:

@@ -83,4 +83,11 @@ table_time_header_time_id = {header_name: 'time_id', header_data_type: 'bigint',
 table_time.add_table_header(table_time_header_time)
 table_time.add_table_header(table_time_header_time_id)
 
+table_nodes_id = Table('nodes_id')
+table_nodes_id_header_node_ip = {header_name: 'node_ip', header_data_type: 'inet', header_attribute: 'primary key'}
+table_nodes_id_header_vertex_id = {header_name: 'vertex_id', header_data_type: 'bigint', header_attribute: 'not null'}
+table_nodes_id_header_port = {header_name: 'port', header_data_type: 'varchar(5)', header_attribute: None}
+table_nodes_id.add_table_header(table_nodes_id_header_node_ip)
+table_nodes_id.add_table_header(table_nodes_id_header_vertex_id)
+table_nodes_id.add_table_header(table_nodes_id_header_port)
 

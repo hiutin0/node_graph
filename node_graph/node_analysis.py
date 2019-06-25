@@ -62,7 +62,7 @@ class NodeAnalysis:
                 next_time_id = vsys_node_analysis.new_graph.get_next_time_id_in_db()
 
                 vsys_node_analysis.new_graph.add_timestamp_to_table_time(current_timestamp, next_time_id)
-                # vsys_node_analysis.new_graph.traversal_graph_dfs(self.ip)
+                vsys_node_analysis.new_graph.traversal_graph_dfs(self.ip)
                 # nodes_and_matrix = vsys_node_analysis.new_graph.get_graph_symmetric_matrix()
                 # vsys_node_analysis.new_graph.get_nodes_detail(nodes_and_matrix, current_timestamp)
 
