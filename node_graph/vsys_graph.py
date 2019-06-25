@@ -237,38 +237,36 @@ class Graph:
 
     def get_graph_asymmetric_matrix(self):
         matrix_row_dim = len(self.graph)
-        matrix = np.zeros([matrix_row_dim, matrix_row_dim], dtype=np.int8)
+        asymmetric_matrix = np.zeros([matrix_row_dim, matrix_row_dim], dtype=np.int8)
         nodes_sequence = []
 
         dim_count = 0
         for node in self.graph:
             nodes_sequence.append(node)
-
             peers = self.graph[node].peers
-            matrix[dim_count, peers] = 1
+            asymmetric_matrix[dim_count, peers] = 1
             dim_count += 1
-
-        return [nodes_sequence, matrix]
+        return [nodes_sequence, asymmetric_matrix]
 
     def get_graph_symmetric_matrix(self):
         matrix_row_dim = len(self.graph)
-        matrix = np.zeros([matrix_row_dim, matrix_row_dim], dtype=np.int8)
+        symmetric_matrix = np.zeros([matrix_row_dim, matrix_row_dim], dtype=np.int8)
         nodes_sequence = []
 
         dim_count = 0
         for node in self.graph:
             nodes_sequence.append(node)
             peers = self.graph[node].peers
-            matrix[dim_count, peers] = 1
+            symmetric_matrix[dim_count, peers] = 1
             if peers:
                 for end_node in peers:
-                    matrix[end_node, dim_count] = 1
+                    symmetric_matrix[end_node, dim_count] = 1
             dim_count += 1
-        return [nodes_sequence, matrix]
+        return [nodes_sequence, symmetric_matrix]
 
     def get_nodes_detail(self, node_matrix, timestamp):
         node_sequence = node_matrix[0]
-        adjacent_matrix = node_matrix[1]
+        adjacent_symmetric_matrix = node_matrix[1]
 
         self.graph_db.start_db()
         headers = '(' + db_meta.hypertable_nodes_all.get_all_headers() + ')'
@@ -292,11 +290,11 @@ class Graph:
             node_info.update({db_meta.hypertable_nodes_all_header_node_name['name']: node_name})
             node_info.update({db_meta.hypertable_nodes_all_header_node_nonce['name']: node_nonce})
             node_info.update({db_meta.hypertable_nodes_all_header_port['name']: port})
+            node_info.update({db_meta.hypertable_nodes_all_header_number_peers['name']: np.sum(adjacent_symmetric_matrix[node_dim, :])})
 
-            peers_index = np.nonzero(adjacent_matrix[node_dim, :])
-            peers = str(np.sum(adjacent_matrix[node_dim, :])) + \
-                '-' + ' '.join([str(vertex_id) for vertex_id in peers_index[0]])
-            node_info.update({db_meta.hypertable_nodes_all_header_number_peers['name']: peers})
+            peers_index = np.nonzero(adjacent_symmetric_matrix[node_dim, :])
+            peers = ' '.join([str(vertex_id) for vertex_id in peers_index[0]])
+            node_info.update({db_meta.hypertable_nodes_all_header_peers['name']: peers})
 
             if node.status:
                 node_info.update({db_meta.hypertable_nodes_all_header_wallet_address['name']: get_node_wallet_address(link)})
