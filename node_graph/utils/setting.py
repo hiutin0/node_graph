@@ -12,4 +12,5 @@ def check_directory_storing_results(clear_old_results=False):
 
     if clear_old_results:
         shutil.rmtree(path_storing_results)
+        os.makedirs(path_storing_results)
 
