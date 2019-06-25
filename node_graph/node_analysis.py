@@ -22,7 +22,7 @@ logging.basicConfig(level=logging.ERROR)
 
 
 # set ip address of root and default ports
-ip_address = '54.69.23.204' # '54.147.255.148'
+ip_address = '54.147.255.148' # '54.147.255.148'
 default_ports = ['9922']
 
 # set graph name
@@ -50,7 +50,7 @@ class NodeAnalysis:
             time.sleep(self.wait_time)
 
     def successive_node_analysis(self, rounds=1, time_gap=600, non_stop=False):
-        self.new_graph.initialize_db(hostname, user_name, password, clear_old_db=True)
+        self.new_graph.initialize_db(hostname, user_name, password)
 
         vsys_node_analysis.new_graph.graph_db.start_db()
         try:
@@ -74,9 +74,9 @@ class NodeAnalysis:
                 rounds -= 1
                 if non_stop:
                     rounds += 1
-        except:
-            msg = "Some error!"
-            throw_error(msg, InvalidInputException)
+        except NodeAnalysisException:
+            msg = "Some error in successive node analysis!"
+            throw_error(msg, NodeAnalysisException)
         finally:
             vsys_node_analysis.new_graph.graph_db.close_db()
 

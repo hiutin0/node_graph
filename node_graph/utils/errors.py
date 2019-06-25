@@ -25,6 +25,10 @@ class InvalidInsertItemDB(MyException):
     pass
 
 
+class NodeAnalysisException(MyException):
+    pass
+
+
 def throw_error(msg, exception=MyException):
     logging.error(msg)
     if THROW_EXCEPTION_ON_ERROR:

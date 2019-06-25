@@ -150,9 +150,9 @@ class Graph:
                             if not _peer.visited:
                                 node_stack.push(_peer_ip)
 
-                            _peer.peers = list(dict.fromkeys(peers_id))
-                            node_stop_time = timeit.default_timer()
-                            _peer.time_get_basic_info = node_stop_time - node_start_time
+                        _vertex.peers = list(dict.fromkeys(peers_id))
+                        node_stop_time = timeit.default_timer()
+                        _vertex.time_get_basic_info = node_stop_time - node_start_time
 
             stop_time = timeit.default_timer()
             self.time_traversal_graph = stop_time - start_time
@@ -242,7 +242,7 @@ class Graph:
 
         dim_count = 0
         for node in self.graph:
-            nodes_sequence.append([node])
+            nodes_sequence.append(node)
 
             peers = self.graph[node].peers
             matrix[dim_count, peers] = 1
