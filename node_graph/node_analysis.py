@@ -38,10 +38,10 @@ user_name = 'aaronyu'
 password = 'pwd'
 
 # clear old results
-clear_old_results = True
+clear_old_results = False
 
 # clear old database
-clear_old_database = True
+clear_old_database = False
 
 
 class NodeAnalysis:
@@ -59,7 +59,7 @@ class NodeAnalysis:
         else:
             time.sleep(self.wait_time)
 
-    def successive_node_analysis(self, rounds=2, time_gap=450, non_stop=False):
+    def successive_node_analysis(self, rounds=1, time_gap=6, non_stop=False):
         self.new_graph.initialize_db(hostname, user_name, password, clear_old_db=clear_old_database)
         try:
             while rounds:
@@ -67,18 +67,20 @@ class NodeAnalysis:
 
                 current_round_start_time = timeit.default_timer()
 
-                vsys_node_analysis.new_graph.get_current_timestamp()
-                current_timestamp = vsys_node_analysis.new_graph.current_timestamp
-                next_time_id = vsys_node_analysis.new_graph.get_next_time_id_in_db()
+                # vsys_node_analysis.new_graph.get_current_timestamp()
+                # current_timestamp = vsys_node_analysis.new_graph.current_timestamp
+                # next_time_id = vsys_node_analysis.new_graph.get_next_time_id_in_db()
+                #
+                # vsys_node_analysis.new_graph.add_timestamp_to_table_time(current_timestamp, next_time_id)
+                # vsys_node_analysis.new_graph.traversal_graph_dfs(self.ip)
+                # nodes_and_matrix = vsys_node_analysis.new_graph.get_graph_symmetric_matrix()
+                # vsys_node_analysis.new_graph.get_nodes_detail(nodes_and_matrix, current_timestamp)
 
-                vsys_node_analysis.new_graph.add_timestamp_to_table_time(current_timestamp, next_time_id)
-                vsys_node_analysis.new_graph.traversal_graph_dfs(self.ip)
-                nodes_and_matrix = vsys_node_analysis.new_graph.get_graph_symmetric_matrix()
-                vsys_node_analysis.new_graph.get_nodes_detail(nodes_and_matrix, current_timestamp)
+                timestamp = self.new_graph.get_the_last_timestamp()
+                symmetric_matrix = self.get_matrix_with_timestamp(timestamp)
+                # self.plot_node_matrix_save(matrix=symmetric_matrix)
 
-                # self.plot_node_matrix_save(matrix=nodes_and_matrix[1])
-
-                self.output_node_details_to_csv_file()
+                # self.output_node_details_to_csv_file()
 
                 current_round_stop_time = timeit.default_timer()
 
@@ -95,6 +97,29 @@ class NodeAnalysis:
         finally:
             vsys_node_analysis.new_graph.graph_db.close_db()
 
+    def get_matrix_with_timestamp(self, timestamp):
+        vsys_node_analysis.new_graph.graph_db.start_db()
+        all_nodes_info = self.new_graph.get_nodes_info_with_timestamp(timestamp)
+
+        vertex_id_map_dim = {}
+        matrix_row_dim = len(all_nodes_info)
+        matrix = np.zeros([matrix_row_dim, matrix_row_dim], dtype=np.int8)
+
+        dim_count = 0
+        for node in all_nodes_info:
+            id_header_name = db_meta.hypertable_nodes_all_header_vertex_id['name']
+            id_dim = db_meta.hypertable_nodes_all.headers[id_header_name].header_id
+            vertex_id = node[id_dim]
+            vertex_id_map_dim.update({dim_count: vertex_id})
+
+
+
+
+            print(vertex_id)
+        # print(all_nodes_info)
+        return 1
+
+
     def plot_node_matrix_save(self, matrix=None, timestamp=None):
         vsys_node_analysis.new_graph.graph_db.start_db()
         if matrix:
@@ -109,9 +134,7 @@ class NodeAnalysis:
         else:
             timestamp = self.new_graph.get_the_last_timestamp()
             if timestamp:
-                self.new_graph.get_matrix_with_timestamp(timestamp)
-
-        vsys_node_analysis.new_graph.graph_db.close_db()
+                self.new_graph.get_nodes_info_with_timestamp(timestamp)
 
     def output_node_details_to_csv_file(self, timestamp=None):
         vsys_node_analysis.new_graph.graph_db.start_db()
@@ -119,7 +142,7 @@ class NodeAnalysis:
             timestamp = self.new_graph.get_the_last_timestamp()
 
         if timestamp:
-            all_nodes_info = self.new_graph.get_matrix_with_timestamp(timestamp)
+            all_nodes_info = self.new_graph.get_nodes_info_with_timestamp(timestamp)
         else:
             all_nodes_info = None
 
@@ -134,8 +157,6 @@ class NodeAnalysis:
         else:
             msg = "No node information to output csv!"
             throw_error(msg, InvalidInputException)
-
-        vsys_node_analysis.new_graph.graph_db.close_db()
 
     def plot_snapshot_graph(self):
         if not self.new_graph.vertex_snapshot:

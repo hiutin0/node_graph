@@ -37,7 +37,7 @@ def get_nodes_with_status(nodes_info):
 
 def output_items_to_csv_file(headers, items, timestamp):
     field_names = headers
-    file_name = timestamp + '_nodes_details.csv'
+    file_name = timestamp.replace(':', '-') + '_nodes_details.csv'
     target = node_analysis_setting.path_storing_results + "/" + file_name
 
     with open(target, 'w') as csv_file:

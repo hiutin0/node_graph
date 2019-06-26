@@ -329,7 +329,7 @@ class Graph:
 
         self.graph_db.close_db()
 
-    def get_matrix_with_timestamp(self, timestamp):
+    def get_nodes_info_with_timestamp(self, timestamp):
         get_items_with_timestamp_command = "SELECT * FROM " + db_meta.hypertable_nodes_all.name + " WHERE " + \
                                db_meta.hypertable_nodes_all_header_time['name'] + "='" + timestamp + "';"
         item_info = self.graph_db.query_items_with_command(get_items_with_timestamp_command)
