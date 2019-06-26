@@ -59,7 +59,7 @@ class NodeAnalysis:
         else:
             time.sleep(self.wait_time)
 
-    def successive_node_analysis(self, rounds=1, time_gap=600, non_stop=False):
+    def successive_node_analysis(self, rounds=2, time_gap=450, non_stop=False):
         self.new_graph.initialize_db(hostname, user_name, password, clear_old_db=clear_old_database)
         try:
             while rounds:
@@ -75,6 +75,8 @@ class NodeAnalysis:
                 vsys_node_analysis.new_graph.traversal_graph_dfs(self.ip)
                 nodes_and_matrix = vsys_node_analysis.new_graph.get_graph_symmetric_matrix()
                 vsys_node_analysis.new_graph.get_nodes_detail(nodes_and_matrix, current_timestamp)
+
+                # self.plot_node_matrix_save(matrix=nodes_and_matrix[1])
 
                 self.output_node_details_to_csv_file()
 

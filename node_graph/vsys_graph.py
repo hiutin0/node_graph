@@ -290,15 +290,18 @@ class Graph:
             node_info.update({db_meta.hypertable_nodes_all_header_node_name['name']: node_name})
             node_info.update({db_meta.hypertable_nodes_all_header_node_nonce['name']: node_nonce})
             node_info.update({db_meta.hypertable_nodes_all_header_port['name']: port})
-            node_info.update({db_meta.hypertable_nodes_all_header_number_peers['name']: np.sum(adjacent_symmetric_matrix[node_dim, :])})
+            node_info.update({db_meta.hypertable_nodes_all_header_number_peers['name']:
+                             np.sum(adjacent_symmetric_matrix[node_dim, :])})
 
             peers_index = np.nonzero(adjacent_symmetric_matrix[node_dim, :])
-            peers = ' '.join([str(vertex_id) for vertex_id in peers_index[0]])
+            peers = "|" + ' '.join([str(vertex_id) for vertex_id in peers_index[0]]) + "|"
 
-            if np.sum(adjacent_symmetric_matrix[node_dim, :]) == 1:
-                print("peers_index: ", peers_index)
-                print("peers_index[0]: ", peers_index[0])
-                print("peers: ", peers)
+            # if np.sum(adjacent_symmetric_matrix[node_dim, :]) == 1:
+            #     peers = '[' + peers + ']'
+            #     print("peers_index: ", peers_index)
+            #     print("peers_index[0]: ", peers_index[0])
+            #     print("peers: ", peers)
+            #     print("node_id: ", node.id)
 
             node_info.update({db_meta.hypertable_nodes_all_header_peers['name']: peers})
 

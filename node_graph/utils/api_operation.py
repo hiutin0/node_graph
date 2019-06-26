@@ -5,7 +5,7 @@ from .errors import NetworkException
 from bs4 import BeautifulSoup
 
 valid_status_code = 200
-time_wait_for_response = 0.5
+time_wait_for_response = 1
 
 
 def set_api_default_port():
