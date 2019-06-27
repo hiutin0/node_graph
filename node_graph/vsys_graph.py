@@ -161,8 +161,8 @@ class Graph:
             msg = "Traversal graph by dfs has error!"
             throw_error(msg, TraversalGraphException)
 
-        finally:
-            self.graph_db.close_db()
+        # finally:
+        #     self.graph_db.close_db()
 
         print("time of traversing the current graph: ", self.time_traversal_graph)
         print("total number of vertex in the current graph: ", len(self.graph))
@@ -327,7 +327,7 @@ class Graph:
             values = "(" + db_meta.hypertable_nodes_all.get_all_values() + ")"
             self.graph_db.insert_item(headers, values, db_meta.hypertable_nodes_all.name)
 
-        self.graph_db.close_db()
+        # self.graph_db.close_db()
 
     def get_nodes_info_with_timestamp(self, timestamp):
         get_items_with_timestamp_command = "SELECT * FROM " + db_meta.hypertable_nodes_all.name + " WHERE " + \
@@ -335,11 +335,26 @@ class Graph:
         item_info = self.graph_db.query_items_with_command(get_items_with_timestamp_command)
         return item_info
 
+    def get_nodes_info_with_ip(self, ip):
+        get_items_with_ip_command = "SELECT * FROM " + db_meta.hypertable_nodes_all.name + " WHERE " + \
+                                           db_meta.hypertable_nodes_all_header_ip_address['name'] + "='" + ip + "';"
+        item_info = self.graph_db.query_items_with_command(get_items_with_ip_command)
+        return item_info
+
     def get_the_last_timestamp(self):
         get_all_timestamp_command = "SELECT * FROM " + db_meta.table_time.name + ";"
         item_info = self.graph_db.query_items_with_command(get_all_timestamp_command)
         if item_info:
             return str(item_info[-1][0])
+        else:
+            return None
+
+    def get_timestamp_id(self, timestamp):
+        get_timestamp_id_command = "SELECT * FROM " + db_meta.table_time.name + " WHERE " + \
+                               db_meta.table_time_header_time['name'] + "='" + str(timestamp) + "';"
+        item_info = self.graph_db.query_items_with_command(get_timestamp_id_command)
+        if item_info:
+            return str(item_info[-1][1])
         else:
             return None
 

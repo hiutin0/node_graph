@@ -59,7 +59,7 @@ class NodeAnalysis:
         else:
             time.sleep(self.wait_time)
 
-    def successive_node_analysis(self, rounds=1, time_gap=6, non_stop=False):
+    def successive_node_analysis(self, rounds=3, time_gap=1000, non_stop=False):
         self.new_graph.initialize_db(hostname, user_name, password, clear_old_db=clear_old_database)
         try:
             while rounds:
@@ -67,20 +67,22 @@ class NodeAnalysis:
 
                 current_round_start_time = timeit.default_timer()
 
-                # vsys_node_analysis.new_graph.get_current_timestamp()
-                # current_timestamp = vsys_node_analysis.new_graph.current_timestamp
-                # next_time_id = vsys_node_analysis.new_graph.get_next_time_id_in_db()
-                #
-                # vsys_node_analysis.new_graph.add_timestamp_to_table_time(current_timestamp, next_time_id)
-                # vsys_node_analysis.new_graph.traversal_graph_dfs(self.ip)
-                # nodes_and_matrix = vsys_node_analysis.new_graph.get_graph_symmetric_matrix()
-                # vsys_node_analysis.new_graph.get_nodes_detail(nodes_and_matrix, current_timestamp)
+                vsys_node_analysis.new_graph.get_current_timestamp()
+                current_timestamp = vsys_node_analysis.new_graph.current_timestamp
+                next_time_id = vsys_node_analysis.new_graph.get_next_time_id_in_db()
+
+                vsys_node_analysis.new_graph.add_timestamp_to_table_time(current_timestamp, next_time_id)
+                vsys_node_analysis.new_graph.traversal_graph_dfs(self.ip)
+                nodes_and_matrix = vsys_node_analysis.new_graph.get_graph_symmetric_matrix()
+                vsys_node_analysis.new_graph.get_nodes_detail(nodes_and_matrix, current_timestamp)
 
                 timestamp = self.new_graph.get_the_last_timestamp()
-                symmetric_matrix = self.get_matrix_with_timestamp(timestamp)
-                # self.plot_node_matrix_save(matrix=symmetric_matrix)
+                [symmetric_matrix, asymmetric_matrix, dim_to_vertex_id] = self.get_matrix_with_timestamp(timestamp)
 
-                # self.output_node_details_to_csv_file()
+                self.plot_node_matrix_save(symmetric_matrix, dim_to_vertex_id, timestamp)
+                self.plot_snapshot_graph(asymmetric_matrix, dim_to_vertex_id, timestamp)
+
+                self.output_node_details_to_csv_file()
 
                 current_round_stop_time = timeit.default_timer()
 
@@ -102,39 +104,48 @@ class NodeAnalysis:
         all_nodes_info = self.new_graph.get_nodes_info_with_timestamp(timestamp)
 
         vertex_id_map_dim = {}
+        dim_map_vertex_id = {}
         matrix_row_dim = len(all_nodes_info)
-        matrix = np.zeros([matrix_row_dim, matrix_row_dim], dtype=np.int8)
+        symmetric_matrix = np.zeros([matrix_row_dim, matrix_row_dim], dtype=np.int8)
+        asymmetric_matrix = np.zeros([matrix_row_dim, matrix_row_dim], dtype=np.int8)
 
         dim_count = 0
         for node in all_nodes_info:
             id_header_name = db_meta.hypertable_nodes_all_header_vertex_id['name']
             id_dim = db_meta.hypertable_nodes_all.headers[id_header_name].header_id
             vertex_id = node[id_dim]
-            vertex_id_map_dim.update({dim_count: vertex_id})
+            dim_map_vertex_id.update({dim_count: vertex_id})
+            vertex_id_map_dim.update({vertex_id: dim_map_vertex_id[dim_count]})
+            dim_count += 1
 
+        for node in all_nodes_info:
+            id_header_name = db_meta.hypertable_nodes_all_header_vertex_id['name']
+            id_dim = db_meta.hypertable_nodes_all.headers[id_header_name].header_id
+            vertex_id = node[id_dim]
+            vertex_id_by_dim = vertex_id_map_dim[vertex_id]
 
+            status_header_name = db_meta.hypertable_nodes_all_header_status['name']
+            status_dim = db_meta.hypertable_nodes_all.headers[status_header_name].header_id
+            status = node[status_dim]
 
+            peers_header_name = db_meta.hypertable_nodes_all_header_peers['name']
+            peers_dim = db_meta.hypertable_nodes_all.headers[peers_header_name].header_id
+            peers_id = node[peers_dim].strip('|').split(' ')
+            peers_id_map_to_dim = [vertex_id_map_dim[int(i)] for i in peers_id]
 
-            print(vertex_id)
-        # print(all_nodes_info)
-        return 1
+            symmetric_matrix[vertex_id_by_dim, peers_id_map_to_dim] = 1
 
+            if status == 'True':
+                asymmetric_matrix[vertex_id_by_dim, peers_id_map_to_dim] = 1
 
-    def plot_node_matrix_save(self, matrix=None, timestamp=None):
-        vsys_node_analysis.new_graph.graph_db.start_db()
-        if matrix:
-            plt.figure()
-            plt.matshow(matrix)
-            plt.savefig('1.png', bbox_inches='tight')
-        elif timestamp:
-            matrix = vsys_node_analysis.new_graph
-            plt.figure()
-            plt.matshow(matrix)
-            plt.savefig('1.png', bbox_inches='tight')
-        else:
-            timestamp = self.new_graph.get_the_last_timestamp()
-            if timestamp:
-                self.new_graph.get_nodes_info_with_timestamp(timestamp)
+        return [symmetric_matrix, asymmetric_matrix, dim_map_vertex_id]
+
+    def plot_node_matrix_save(self, matrix, dim_to_vertex_id, timestamp):
+        file_name = timestamp.replace(':', '-') + '_matrix_plot.png'
+        target = node_analysis_setting.path_storing_results + "/" + file_name
+        plt.figure()
+        plt.matshow(matrix)
+        plt.savefig(target, bbox_inches='tight')
 
     def output_node_details_to_csv_file(self, timestamp=None):
         vsys_node_analysis.new_graph.graph_db.start_db()
@@ -158,71 +169,73 @@ class NodeAnalysis:
             msg = "No node information to output csv!"
             throw_error(msg, InvalidInputException)
 
-    def plot_snapshot_graph(self):
-        if not self.new_graph.vertex_snapshot:
-            msg = "Snapshot is empty!"
-            throw_error(msg, InvalidInputException)
-        nodes = list(self.new_graph.vertex_snapshot.values())
+    def plot_snapshot_graph(self, asymmetric_matrix, dim_to_vertex_id, timestamp):
+        dim = list(dim_to_vertex_id.keys())
+        nodes = [dim_to_vertex_id[d] for d in dim]
+
         nodes_graph = nx.DiGraph()
         nodes_graph.add_nodes_from(nodes)
-        color_list = ['blue'] * len(self.new_graph.graph)
+        color_list = ['blue'] * len(nodes)
 
-        graph_network = self.construct_graph()
+        number_dim = asymmetric_matrix.shape[0]
 
-        for node_id in self.new_graph.graph:
-            node = self.new_graph.graph[node_id]
-            if not node.status:
+        for d in range(number_dim):
+            node_id = dim_to_vertex_id[d]
+            peers_by_dim = np.nonzero(asymmetric_matrix[d, :])[0]
+            if len(peers_by_dim) == 0:
                 color_list[node_id] = 'red'
-            if node_id in graph_network:
-                for peer in graph_network[node_id]:
-                    nodes_graph.add_edge(node_id, peer)
+            peers = [dim_to_vertex_id[i] for i in peers_by_dim]
+            for p in peers:
+                nodes_graph.add_edge(node_id, p, length=len(peers))
 
+        file_name = timestamp.replace(':', '-') + '_node_graph_plot.png'
+        target = node_analysis_setting.path_storing_results + "/" + file_name
+        pos = nx.circular_layout(nodes_graph, scale=1)
         plt.figure()
-        nx.draw(nodes_graph, node_color=color_list, with_labels=True)
+        nx.draw(nodes_graph, node_color=color_list, with_labels=True, pos=pos)
         plt.draw()
-        plt.savefig('2.png', bbox_inches='tight')
+        plt.savefig(target, bbox_inches='tight')
 
-# vsys_asymmetric_matrix = vsys.get_graph_asymmetric_matrix(vsys_network)
-# print("asymmetric matrix: ", vsys_asymmetric_matrix)
-#
-# vsys_symmetric_matrix = vsys.get_graph_symmetric_matrix(vsys_network)
-# print("symmetric matrix: ", vsys_symmetric_matrix)
-#
-# plt.figure()
-# plt.matshow(vsys_symmetric_matrix)
-# plt.savefig('1.png', bbox_inches='tight')
-#
-# status = vsys.check_graph_outdated()
-# print("status", status)
-#
-# vsys_nodes = list(vsys.vertex_snapshot.values())
-#
-# vsys_node_network = nx.DiGraph()
-# vsys_node_network.add_nodes_from(vsys_nodes)
-# color_list = ['blue'] * len(vsys.graph)
-#
-# for node_id in vsys.graph:
-#     node = vsys.graph[node_id]
-#     if not node.status:
-#         color_list[node_id] = 'red'
-#     if node_id in vsys_network:
-#         for peer in vsys_network[node_id]:
-#             vsys_node_network.add_edge(node_id, peer)
-#
-# plt.figure()
-# nx.draw(vsys_node_network, node_color=color_list, with_labels=True)
-# plt.draw()
-# plt.savefig('2.png', bbox_inches='tight')
-#
-# print("all nodes info")
-# all_nodes_info = vsys.get_nodes_detail(vsys_symmetric_matrix)
-#
-# vsys.output_graph_by_number_peers(all_nodes_info)
-#
-#
-# plt.show()
+    def plot_node_performance(self, ip):
+        vsys_node_analysis.new_graph.graph_db.start_db()
+        all_info = self.new_graph.get_nodes_info_with_ip(ip)
+
+        status_header_name = db_meta.hypertable_nodes_all_header_status['name']
+        status_dim = db_meta.hypertable_nodes_all.headers[status_header_name].header_id
+
+        number_peers_header_name = db_meta.hypertable_nodes_all_header_number_peers['name']
+        number_peers_dim = db_meta.hypertable_nodes_all.headers[number_peers_header_name].header_id
+
+        x = []
+        status = []
+        number_peers = []
+        for item in all_info:
+            time_id = self.new_graph.get_timestamp_id(item[0])
+            if time_id:
+                x.append(time_id)
+                if item[status_dim]:
+                    status.append(node_analysis_setting.status_labels[item[status_dim]])
+                else:
+                    status.append(node_analysis_setting.status_labels['None'])
+
+                number_peers.append(int(item[number_peers_dim]))
+
+        file_name_status = ip + '_node_performance_status.png'
+        target_status = node_analysis_setting.path_storing_results + "/" + file_name_status
+        plt.figure()
+        plt.plot(x, status)
+        plt.yticks(list(node_analysis_setting.status_labels.values()), list(node_analysis_setting.status_labels.keys()))
+        plt.savefig(target_status, bbox_inches='tight')
+
+        file_name_number_peers = ip + '_node_performance_number_peers.png'
+        target_number_peers = node_analysis_setting.path_storing_results + "/" + file_name_number_peers
+        plt.figure()
+        plt.plot(x, number_peers)
+        plt.savefig(target_number_peers, bbox_inches='tight')
 
 
 if __name__ == "__main__":
     vsys_node_analysis = NodeAnalysis(graph_name, system_application_name, ip_address, default_ports)
     vsys_node_analysis.successive_node_analysis()
+    vsys_node_analysis.plot_node_performance(vsys_node_analysis.ip)
+
