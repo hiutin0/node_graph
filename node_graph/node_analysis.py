@@ -1,47 +1,13 @@
-from utils.ip_operation import *
-import logging
 from lib.graph_operations import *
 from utils.errors import *
 from vsys_graph import Graph
 import utils.db_meta as db_meta
 import timeit
 import time
-import utils.setting as node_analysis_setting
-
+import setting as node_analysis_setting
 import numpy as np
-from node import Node
-
-from utils.api_operation import *
-
 import networkx as nx
 import matplotlib.pyplot as plt
-
-
-# basic setting of error
-set_throw_on_error()
-
-
-logging.basicConfig(level=logging.ERROR)
-
-
-# set ip address of root and default ports
-ip_address = '54.147.255.148' # '54.147.255.148'
-default_ports = ['9922']
-
-# set graph name
-graph_name = 'vsys'
-system_application_name = 'V SYSTEMSM'
-
-# set hostname, db name and pwd
-hostname = 'localhost'
-user_name = 'aaronyu'
-password = 'pwd'
-
-# clear old results
-clear_old_results = False
-
-# clear old database
-clear_old_database = False
 
 
 class NodeAnalysis:
@@ -50,7 +16,7 @@ class NodeAnalysis:
         self.ports = ports
         self.new_graph = Graph(name, application_name)
         self.wait_time = 0
-        node_analysis_setting.check_directory_storing_results(clear_old_results)
+        node_analysis_setting.check_directory_storing_results(node_analysis_setting.clear_old_results)
 
     def wait_time_after_analysis_finished(self):
         if self.wait_time < 0:
@@ -59,8 +25,8 @@ class NodeAnalysis:
         else:
             time.sleep(self.wait_time)
 
-    def successive_node_analysis(self, rounds=3, time_gap=1000, non_stop=False):
-        self.new_graph.initialize_db(hostname, user_name, password, clear_old_db=clear_old_database)
+    def successive_node_analysis(self, rounds=1, time_gap=800, non_stop=False):
+        self.new_graph.initialize_db(hostname, user_name, password, clear_old_db=node_analysis_setting.clear_old_database)
         try:
             while rounds:
                 vsys_node_analysis.new_graph.graph_db.start_db()
@@ -235,6 +201,16 @@ class NodeAnalysis:
 
 
 if __name__ == "__main__":
+    graph_name = node_analysis_setting.graph_name
+    system_application_name = node_analysis_setting.system_application_name
+
+    hostname = node_analysis_setting.hostname
+    user_name = node_analysis_setting.user_name
+    password = node_analysis_setting.password
+
+    ip_address = node_analysis_setting.ip_address
+    default_ports = node_analysis_setting.default_ports
+
     vsys_node_analysis = NodeAnalysis(graph_name, system_application_name, ip_address, default_ports)
     vsys_node_analysis.successive_node_analysis()
     vsys_node_analysis.plot_node_performance(vsys_node_analysis.ip)

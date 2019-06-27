@@ -1,5 +1,5 @@
 import csv
-import utils.setting as node_analysis_setting
+import setting as node_analysis_setting
 import utils.db_meta as db_meta
 
 
